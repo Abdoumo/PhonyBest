@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginUser, clearError } from '../redux/authSlice';
 import { FiUser, FiLock, FiZap } from 'react-icons/fi';
 
 export default function LoginPage() {
+  const { t } = useLanguage();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const dispatch = useDispatch();
@@ -27,32 +29,32 @@ export default function LoginPage() {
             </div>
             <div>
               <h2 style={{ fontSize:22, margin:0 }}>FLEXY GSM</h2>
-              <p style={{ margin:0, fontSize:12 }}>لوحة الإدارة</p>
+              <p style={{ margin:0, fontSize:12 }}>{t('لوحة الإدارة')}</p>
             </div>
           </div>
 
-          <h2>مرحباً بعودتك</h2>
-          <p>قم بتسجيل الدخول إلى لوحة التحكم الخاصة بك</p>
+          <h2>{t('مرحباً بعودتك')}</h2>
+          <p>{t('قم بتسجيل الدخول إلى لوحة التحكم الخاصة بك')}</p>
 
           {error && <div className="login-error">{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label">اسم المستخدم</label>
+              <label className="form-label">{t('اسم المستخدم')}</label>
               <div style={{ position:'relative' }}>
                 <FiUser style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)' }} />
                 <input className="form-input" style={{ paddingRight:36 }}
-                  placeholder="أدخل اسم المستخدم" value={username}
+                  placeholder={t("أدخل اسم المستخدم")} value={username}
                   onChange={e => { setUsername(e.target.value); dispatch(clearError()); }}
                 />
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">كلمة المرور</label>
+              <label className="form-label">{t('كلمة المرور')}</label>
               <div style={{ position:'relative' }}>
                 <FiLock style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)' }} />
                 <input className="form-input" type="password" style={{ paddingRight:36 }}
-                  placeholder="أدخل كلمة المرور" value={password}
+                  placeholder={t("أدخل كلمة المرور")} value={password}
                   onChange={e => { setPassword(e.target.value); dispatch(clearError()); }}
                 />
               </div>

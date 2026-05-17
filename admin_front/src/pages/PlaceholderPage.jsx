@@ -1,4 +1,5 @@
-export default function PlaceholderPage({ title, subtitle }) {
+export default function PlaceholderPage() {
+  const { t } = useLanguage();
   return (
     <div className="fade-in">
       <div className="page-header">
@@ -9,8 +10,8 @@ export default function PlaceholderPage({ title, subtitle }) {
       </div>
       <div className="card" style={{ textAlign:'center', padding:60 }}>
         <div style={{ fontSize:48, marginBottom:16 }}>🚧</div>
-        <h2 style={{ fontSize:20, marginBottom:8 }}>قريباً</h2>
-        <p style={{ color:'var(--text-muted)' }}>هذه الوحدة قيد التطوير.</p>
+        <h2 style={{ fontSize:20, marginBottom:8 }}>{t('قريباً')}</h2>
+        <p style={{ color:'var(--text-muted)' }}>{t('هذه الوحدة قيد التطوير.')}</p>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { FiSend, FiPhone, FiDollarSign } from 'react-icons/fi';
 import API from '../api/axios';
 
@@ -29,6 +30,7 @@ const operatorOffers = {
 };
 
 export default function FlexyPage() {
+  const { t } = useLanguage();
   const [number, setNumber] = useState('');
   const [operator, setOperator] = useState('mobilis');
   const [amount, setAmount] = useState(1000);
@@ -53,14 +55,14 @@ export default function FlexyPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">تعبئة فليكسي</h1>
-          <p className="page-subtitle">إرسال تعبئة فليكسي لأي رقم</p>
+          <h1 className="page-title">{t('تعبئة فليكسي')}</h1>
+          <p className="page-subtitle">{t('إرسال تعبئة فليكسي لأي رقم')}</p>
         </div>
       </div>
 
       <div className="grid-2">
         <div className="card">
-          <div className="card-header"><span className="card-title">إرسال تعبئة</span></div>
+          <div className="card-header"><span className="card-title">{t('إرسال تعبئة')}</span></div>
 
           <div style={{ display:'flex', gap:8, marginBottom:16 }}>
             {operators.map(op => (
@@ -68,16 +70,18 @@ export default function FlexyPage() {
                 className={`btn ${operator === op.id ? 'btn-primary' : 'btn-secondary'}`}
                 style={operator === op.id ? { background: op.color } : {}}
                 onClick={() => setOperator(op.id)}>
-                {op.name}
+                {t(op.name)}
               </button>
             ))}
           </div>
 
           <div className="form-group">
-            <label className="form-label"><FiPhone style={{marginLeft:4}} /> رقم الهاتف</label>
+            <label className="form-label"><FiPhone style={{marginLeft:4}} />{t('رقم الهاتف')}</label>
             <input className="form-input" placeholder="0550000000" value={number}
+              maxLength={10}
+              style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }}
               onChange={e => {
-                const val = e.target.value;
+                const val = e.target.value.replace(/\D/g, ''); // only allow digits
                 setNumber(val);
                 if (val.startsWith('05')) { setOperator('ooredoo'); setOffer(''); }
                 else if (val.startsWith('06')) { setOperator('mobilis'); setOffer(''); }
@@ -86,24 +90,24 @@ export default function FlexyPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label"><FiDollarSign style={{marginLeft:4}} /> المبلغ</label>
+            <label className="form-label"><FiDollarSign style={{marginLeft:4}} />{t('المبلغ')}</label>
             <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:8 }}>
               {amounts.map(a => (
                 <button key={a}
                   className={`btn btn-sm ${amount === a ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setAmount(a)}>
-                  {a} د.ج
+                  {a} {t('د.ج')}
                 </button>
               ))}
             </div>
             <input className="form-input" type="number" value={amount}
-              onChange={e => setAmount(Number(e.target.value))} placeholder="مبلغ مخصص" />
+              onChange={e => setAmount(Number(e.target.value))} placeholder={t("مبلغ مخصص")} />
           </div>
 
           <div className="form-group">
-            <label className="form-label">العرض (اختياري)</label>
+            <label className="form-label">{t('العرض (اختياري)')}</label>
             <select className="form-select" value={offer} onChange={e => setOffer(e.target.value)}>
-              <option value="">بدون عرض</option>
+              <option value="">{t('بدون عرض')}</option>
               {operatorOffers[operator]?.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
@@ -118,18 +122,18 @@ export default function FlexyPage() {
 
           <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center' }}
             onClick={handleSend} disabled={loading}>
-            {loading ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSend size={14} style={{marginLeft:4}}/> إرسال فليكسي</>}
+            {loading ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSend size={14} style={{marginLeft:4}}/>{t('إرسال فليكسي')}</>}
           </button>
         </div>
 
         <div className="card">
-          <div className="card-header"><span className="card-title">معلومات سريعة</span></div>
+          <div className="card-header"><span className="card-title">{t('معلومات سريعة')}</span></div>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {operators.map(op => (
               <div key={op.id} style={{ display:'flex', alignItems:'center', gap:12, padding:12, background:'var(--bg-input)', borderRadius:8 }}>
                 <div style={{ width:8, height:8, borderRadius:'50%', background: op.color }} />
                 <div>
-                  <div style={{ fontWeight:600, fontSize:14 }}>{op.name}</div>
+                  <div style={{ fontWeight:600, fontSize:14 }}>{t(op.name)}</div>
                   <div style={{ fontSize:12, color:'var(--text-muted)' }}>البادئة: {op.prefix}x</div>
                 </div>
               </div>

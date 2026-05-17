@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useSelector } from 'react-redux';
 import { FiList, FiSearch, FiFilter } from 'react-icons/fi';
 import API from '../api/axios';
 
 export default function TransactionsPage() {
+  const { t } = useLanguage();
   const { user } = useSelector(s => s.auth);
   const isAdmin = user?.role === 'ADMIN';
 
@@ -84,8 +86,8 @@ export default function TransactionsPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">كل العمليات</h1>
-          <p className="page-subtitle">عرض جميع الحركات والمعاملات في النظام</p>
+          <h1 className="page-title">{t('كل العمليات')}</h1>
+          <p className="page-subtitle">{t('عرض جميع الحركات والمعاملات في النظام')}</p>
         </div>
       </div>
 
@@ -97,9 +99,9 @@ export default function TransactionsPage() {
         <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
           {isAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>المستخدمين</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('المستخدمين')}</label>
               <select className="form-select" value={userFilter} onChange={e => setUserFilter(e.target.value)} style={{ width: '100%' }}>
-                <option value="">الجميع (الكل)</option>
+                <option value="">{t('الجميع (الكل)')}</option>
                 {users.map(u => (
                   <option key={u.id} value={u.id}>{u.username} {u.full_name ? `(${u.full_name})` : ''}</option>
                 ))}
@@ -108,35 +110,35 @@ export default function TransactionsPage() {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>نوع العملية</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('نوع العملية')}</label>
             <select className="form-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ width: '100%' }}>
-              <option value="">كل الأنواع</option>
-              <option value="flexy">فليكسي</option>
-              <option value="idoom">أيدوم</option>
-              <option value="card">بيع بطاقة</option>
-              <option value="buy_cards">شراء بطاقات بالجملة</option>
-              <option value="transfer">تحويلات</option>
-              <option value="wallet_add">إيداع</option>
+              <option value="">{t('كل الأنواع')}</option>
+              <option value="flexy">{t('فليكسي')}</option>
+              <option value="idoom">{t('أيدوم')}</option>
+              <option value="card">{t('بيع بطاقة')}</option>
+              <option value="buy_cards">{t('شراء بطاقات بالجملة')}</option>
+              <option value="transfer">{t('تحويلات')}</option>
+              <option value="wallet_add">{t('إيداع')}</option>
             </select>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>حالة العملية</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('حالة العملية')}</label>
             <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: '100%' }}>
-              <option value="">كل الحالات</option>
-              <option value="success">ناجحة</option>
-              <option value="failed">فاشلة</option>
-              <option value="pending">قيد الانتظار</option>
+              <option value="">{t('كل الحالات')}</option>
+              <option value="success">{t('ناجحة')}</option>
+              <option value="failed">{t('فاشلة')}</option>
+              <option value="pending">{t('قيد الانتظار')}</option>
             </select>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>بحث حر</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('بحث حر')}</label>
             <div style={{ position: 'relative', width: '100%' }}>
               <FiSearch style={{ position: 'absolute', right: 12, top: 10, color: 'var(--text-muted)' }} />
               <input
                 style={{ paddingRight: 36, width: '100%', height: 38, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                placeholder="رقم الهاتف، الاسم..."
+                placeholder={t("رقم الهاتف، الاسم...")}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -148,61 +150,59 @@ export default function TransactionsPage() {
           {loading ? (
             <div style={{ textAlign: 'center', padding: 40 }}><span className="spinner" style={{ margin: '0 auto' }} /></div>
           ) : transactions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-              لا توجد عمليات مطابقة.
-            </div>
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>{t('لا توجد عمليات مطابقة.')}</div>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th>رقم</th>
-                  <th>النوع</th>
-                  <th>المتعامل</th>
+                  <th>{t('رقم')}</th>
+                  <th>{t('النوع')}</th>
+                  <th>{t('المتعامل')}</th>
                   <th>رقم الهاتف/المرجع</th>
-                  <th>المبلغ</th>
-                  {isAdmin && <th>التكلفة</th>}
-                  {isAdmin && <th>الربح</th>}
+                  <th>{t('المبلغ')}</th>
+                  {isAdmin && <th>{t('التكلفة')}</th>}
+                  {isAdmin && <th>{t('الربح')}</th>}
                   <th>العرض/المعلومات</th>
-                  <th>الحالة</th>
-                  <th>المستخدم</th>
-                  <th>التاريخ</th>
+                  <th>{t('الحالة')}</th>
+                  <th>{t('المستخدم')}</th>
+                  <th>{t('التاريخ')}</th>
                 </tr>
               </thead>
               <tbody>
-                {transactions.map(t => (
-                  <tr key={t.id}>
-                    <td style={{ fontWeight: 600 }}>#{t.id}</td>
-                    <td><span className="badge-status">{translateType(t.type)}</span></td>
-                    <td style={{ textTransform: 'capitalize' }}>{t.operator || '-'}</td>
+                {transactions.map(tx => (
+                  <tr key={tx.id}>
+                    <td style={{ fontWeight: 600 }}>#{tx.id}</td>
+                    <td><span className="badge-status">{translateType(tx.type)}</span></td>
+                    <td style={{ textTransform: 'capitalize' }}>{tx.operator ? t(tx.operator) : '-'}</td>
                     <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                      {t.type === 'buy_cards' ? 'شراء بطاقات (جملة)' : (t.phone_number || '-')}
+                      {tx.type === 'buy_cards' ? 'شراء بطاقات (جملة)' : (tx.phone_number || '-')}
                     </td>
-                    <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{t.amount} د.ج</td>
-                    {isAdmin && <td style={{ color: 'var(--danger)' }}>{t.cost ? `${t.cost} د.ج` : '-'}</td>}
-                    {isAdmin && <td style={{ color: 'var(--success)' }}>{t.profit ? `${t.profit} د.ج` : '-'}</td>}
+                    <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{tx.amount} {t('د.ج')}</td>
+                    {isAdmin && <td style={{ color: 'var(--danger)' }}>{tx.cost ? `${tx.cost} ${t('د.ج')}` : '-'}</td>}
+                    {isAdmin && <td style={{ color: 'var(--success)' }}>{tx.profit ? `${tx.profit} ${t('د.ج')}` : '-'}</td>}
                     <td style={{ fontSize: 13 }}>
-                      {t.offer && <span style={{ background: 'var(--bg-input)', padding: '2px 6px', borderRadius: 4, display: 'inline-block', marginBottom: 2 }}>{t.offer}</span>}
-                      {t.sim_used && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>شريحة: {t.sim_used}</div>}
-                      {t.type === 'buy_cards' && t.metadata && (
+                      {tx.offer && <span style={{ background: 'var(--bg-input)', padding: '2px 6px', borderRadius: 4, display: 'inline-block', marginBottom: 2 }}>{tx.offer}</span>}
+                      {tx.sim_used && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>شريحة: {tx.sim_used}</div>}
+                      {tx.type === 'buy_cards' && tx.metadata && (
                         <div style={{ fontSize: 12, marginTop: 4 }}>
-                          <span style={{ color: 'var(--primary)' }}>الكمية: {typeof t.metadata === 'string' ? JSON.parse(t.metadata).quantity : t.metadata.quantity}</span>
+                          <span style={{ color: 'var(--primary)' }}>الكمية: {typeof tx.metadata === 'string' ? JSON.parse(tx.metadata).quantity : tx.metadata.quantity}</span>
                           <span style={{ margin: '0 4px' }}>|</span>
-                          <span style={{ color: 'var(--text-muted)' }}>قيمة البطاقة: {typeof t.metadata === 'string' ? JSON.parse(t.metadata).value : t.metadata.value}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>قيمة البطاقة: {typeof tx.metadata === 'string' ? JSON.parse(tx.metadata).value : tx.metadata.value}</span>
                         </div>
                       )}
-                      {t.error_message && <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 2, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.error_message}>{t.error_message}</div>}
-                      {!t.offer && !t.sim_used && t.type !== 'buy_cards' && !t.error_message && '-'}
+                      {tx.error_message && <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 2, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={tx.error_message}>{tx.error_message}</div>}
+                      {!tx.offer && !tx.sim_used && tx.type !== 'buy_cards' && !tx.error_message && '-'}
                     </td>
                     <td>
-                      <span className={`badge-status ${getStatusClass(t.status)}`}>
-                        {translateStatus(t.status)}
+                      <span className={`badge-status ${getStatusClass(tx.status)}`}>
+                        {translateStatus(tx.status)}
                       </span>
                     </td>
                     <td style={{ fontSize: 13 }}>
-                      <div>{t.client_full_name || t.client_name || '-'}</div>
-                      {t.processed_by_name && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>منفذ: {t.processed_by_name}</div>}
+                      <div>{tx.client_full_name || tx.client_name || '-'}</div>
+                      {tx.processed_by_name && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>منفذ: {tx.processed_by_name}</div>}
                     </td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(t.created_at).toLocaleString('ar-DZ')}</td>
+                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(tx.created_at).toLocaleString('ar-DZ')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -211,15 +211,11 @@ export default function TransactionsPage() {
 
           {pagination.pages > 1 && !loading && (
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
-              <button className="btn btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
-                الصفحة السابقة
-              </button>
+              <button className="btn btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>{t('الصفحة السابقة')}</button>
               <span style={{ padding: '4px 12px', background: 'var(--bg-input)', borderRadius: 4, fontSize: 13, display: 'flex', alignItems: 'center' }}>
                 صفحة {pagination.page} من {pagination.pages}
               </span>
-              <button className="btn btn-sm" disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)}>
-                الصفحة التالية
-              </button>
+              <button className="btn btn-sm" disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)}>{t('الصفحة التالية')}</button>
             </div>
           )}
         </div>

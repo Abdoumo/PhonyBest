@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { FiFileText, FiSearch, FiFilter } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 import API from '../api/axios';
 
 export default function CardOrdersPage() {
+  const { t } = useLanguage();
   const { user } = useSelector(s => s.auth);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,22 +41,22 @@ export default function CardOrdersPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">طلبات البطاقات</h1>
-          <p className="page-subtitle">سجل البطاقات التي تم إرسالها أو بيعها</p>
+          <h1 className="page-title">{t('طلبات البطاقات')}</h1>
+          <p className="page-subtitle">{t('سجل البطاقات التي تم إرسالها أو بيعها')}</p>
         </div>
       </div>
 
       <div className="card">
         <div className="card-header">
-          <span className="card-title">قائمة الطلبات</span>
+          <span className="card-title">{t('قائمة الطلبات')}</span>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <select className="form-select" value={filterBy} onChange={e => setFilterBy(e.target.value)} style={{ padding: '6px 12px', fontSize: 13, minWidth: 150 }}>
-              <option value="all">الجميع (كل الطلبات)</option>
-              <option value="me">طلباتي فقط</option>
+              <option value="all">{t('الجميع (كل الطلبات)')}</option>
+              <option value="me">{t('طلباتي فقط')}</option>
             </select>
             <div className="header-search" style={{ minWidth: 250 }}>
               <FiSearch />
-              <input placeholder="البحث برقم الهاتف، أو المشغل..." value={search} onChange={e => setSearch(e.target.value)} />
+              <input placeholder={t("البحث برقم الهاتف، أو المشغل...")} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           </div>
         </div>
@@ -63,17 +65,17 @@ export default function CardOrdersPage() {
           {loading ? (
             <div style={{ textAlign:'center', padding:40 }}><span className="spinner" style={{ margin:'0 auto' }}/></div>
           ) : filtered.length === 0 ? (
-            <div style={{ textAlign:'center', padding:40, color:'var(--text-muted)' }}>لا يوجد سجل للطلبات</div>
+            <div style={{ textAlign:'center', padding:40, color:'var(--text-muted)' }}>{t('لا يوجد سجل للطلبات')}</div>
           ) : (
             <table>
               <thead>
                 <tr>
                   <th>رقم الطلب (ID)</th>
-                  <th>المُرسل (الموظف)</th>
-                  <th>رقم الهاتف المستلم</th>
-                  <th>البطاقة (النوع والقيمة)</th>
-                  <th>الحالة</th>
-                  <th>التاريخ</th>
+                  <th>{t('المُرسل (الموظف)')}</th>
+                  <th>{t('رقم الهاتف المستلم')}</th>
+                  <th>{t('البطاقة (النوع والقيمة)')}</th>
+                  <th>{t('الحالة')}</th>
+                  <th>{t('التاريخ')}</th>
                 </tr>
               </thead>
               <tbody>

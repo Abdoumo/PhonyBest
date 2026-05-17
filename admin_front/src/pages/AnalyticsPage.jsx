@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { FiPieChart, FiBarChart2, FiTrendingUp, FiActivity } from 'react-icons/fi';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import API from '../api/axios';
@@ -17,6 +18,7 @@ const mockBarData = Array.from({ length: 7 }, (_, i) => ({
 }));
 
 export default function AnalyticsPage() {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
 
   const load = () => {
@@ -30,18 +32,17 @@ export default function AnalyticsPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">تحليلات المنصة</h1>
-          <p className="page-subtitle">تقارير مفصلة حول أداء المنصة والإيرادات</p>
+          <h1 className="page-title">{t('تحليلات المنصة')}</h1>
+          <p className="page-subtitle">{t('تقارير مفصلة حول أداء المنصة والإيرادات')}</p>
         </div>
         <button className="btn btn-primary" onClick={load}>
-          <FiActivity size={14} style={{marginLeft:4}}/> تحديث البيانات
-        </button>
+          <FiActivity size={14} style={{marginLeft:4}}/>{t('تحديث البيانات')}</button>
       </div>
 
       <div className="grid-2" style={{ marginBottom: 24 }}>
         <div className="card">
           <div className="card-header">
-            <span className="card-title">توزيع الخدمات (آخر 30 يوم)</span>
+            <span className="card-title">{t('توزيع الخدمات (آخر 30 يوم)')}</span>
             <FiPieChart color="var(--text-muted)" />
           </div>
           <div className="chart-container" style={{ height: 250 }}>
@@ -68,7 +69,7 @@ export default function AnalyticsPage() {
 
         <div className="card">
           <div className="card-header">
-            <span className="card-title">الإيرادات الأسبوعية</span>
+            <span className="card-title">{t('الإيرادات الأسبوعية')}</span>
             <FiBarChart2 color="var(--text-muted)" />
           </div>
           <div className="chart-container" style={{ height: 250 }}>
@@ -91,23 +92,23 @@ export default function AnalyticsPage() {
         <div className="stat-card">
           <div>
             <p className="stat-label">متوسط إيراد المستخدم (ARPU)</p>
-            <p className="stat-value">4,520 د.ج</p>
+            <p className="stat-value">4,520 {t('د.ج')}</p>
             <p className="stat-trend up" style={{ fontSize:12, marginTop:6 }}>+5.2% هذا الشهر</p>
           </div>
           <div className="stat-icon success"><FiTrendingUp size={20} /></div>
         </div>
         <div className="stat-card">
           <div>
-            <p className="stat-label">أفضل متعامل (إيرادات)</p>
-            <p className="stat-value" style={{ color: 'var(--mobilis)' }}>موبيليس</p>
+            <p className="stat-label">{t('أفضل متعامل (إيرادات)')}</p>
+            <p className="stat-value" style={{ color: 'var(--mobilis)' }}>{t('موبيليس')}</p>
             <p style={{ fontSize:12, color:'var(--text-muted)', marginTop:6 }}>يستحوذ على 45% من المبيعات</p>
           </div>
           <div className="stat-icon info"><FiPieChart size={20} /></div>
         </div>
         <div className="stat-card">
           <div>
-            <p className="stat-label">أرباح المنصة الصافية</p>
-            <p className="stat-value">124,500 د.ج</p>
+            <p className="stat-label">{t('أرباح المنصة الصافية')}</p>
+            <p className="stat-value">124,500 {t('د.ج')}</p>
             <p className="stat-trend up" style={{ fontSize:12, marginTop:6 }}>+12.8% مقارنة بالشهر الماضي</p>
           </div>
           <div className="stat-icon accent"><FiActivity size={20} /></div>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { FiArrowUpRight, FiSearch, FiSend, FiUser } from 'react-icons/fi';
 import API from '../api/axios';
 
 export default function TransfersPage() {
+  const { t } = useLanguage();
   const [transfers, setTransfers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,12 +45,11 @@ export default function TransfersPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">التحويلات المالية</h1>
-          <p className="page-subtitle">إدارة ومراقبة تحويلات الأرصدة بين المستخدمين</p>
+          <h1 className="page-title">{t('التحويلات المالية')}</h1>
+          <p className="page-subtitle">{t('إدارة ومراقبة تحويلات الأرصدة بين المستخدمين')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          <FiSend size={14} style={{marginLeft:4}}/> تحويل رصيد
-        </button>
+          <FiSend size={14} style={{marginLeft:4}}/>{t('تحويل رصيد')}</button>
       </div>
 
       <div className="table-wrapper">
@@ -56,42 +57,41 @@ export default function TransfersPage() {
           <div style={{ display:'flex', gap:8 }}>
             <div className="header-search" style={{ minWidth:250 }}>
               <FiSearch />
-              <input placeholder="البحث برقم المعاملة أو المستخدم..." value={search} onChange={e => setSearch(e.target.value)} />
+              <input placeholder={t("البحث برقم المعاملة أو المستخدم...")} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           </div>
         </div>
         <table>
           <thead>
             <tr>
-              <th>رقم المعاملة</th>
-              <th>التاريخ</th>
-              <th>المرسل</th>
-              <th>المستلم</th>
-              <th>المبلغ</th>
-              <th>النوع</th>
-              <th>الحالة</th>
+              <th>{t('رقم المعاملة')}</th>
+              <th>{t('التاريخ')}</th>
+              <th>{t('المرسل')}</th>
+              <th>{t('المستلم')}</th>
+              <th>{t('المبلغ')}</th>
+              <th>{t('النوع')}</th>
+              <th>{t('الحالة')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan="7" style={{textAlign:'center', padding:24}}><span className="spinner" style={{margin:'0 auto'}}/></td></tr>
             ) : transfers.length === 0 ? (
-              <tr><td colSpan="7" style={{textAlign:'center', padding:24}}>لا توجد تحويلات</td></tr>
-            ) : transfers.map(t => (
-              <tr key={t.id}>
-                <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{t.id}</td>
-                <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(t.date).toLocaleString('ar-DZ')}</td>
-                <td><span className="badge-status info">@{t.from_user}</span></td>
-                <td><span className="badge-status info">@{t.to_user}</span></td>
-                <td style={{ fontWeight: 600, color: 'var(--success)' }}>+{parseFloat(t.amount).toLocaleString()} د.ج</td>
+              <tr><td colSpan="7" style={{textAlign:'center', padding:24}}>{t('لا توجد تحويلات')}</td></tr>
+            ) : transfers.map(trx => (
+              <tr key={trx.id}>
+                <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{trx.id}</td>
+                <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(trx.date).toLocaleString('ar-DZ')}</td>
+                <td><span className="badge-status info">@{trx.from_user}</span></td>
+                <td><span className="badge-status info">@{trx.to_user}</span></td>
+                <td style={{ fontWeight: 600, color: 'var(--success)' }}>+{parseFloat(trx.amount).toLocaleString()} {t('د.ج')}</td>
                 <td>
                   <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12 }}>
-                    <FiArrowUpRight color="var(--accent)" /> تحويل
-                  </span>
+                    <FiArrowUpRight color="var(--accent)" />{t('تحويل')}</span>
                 </td>
                 <td>
-                  <span className={`badge-status ${t.status === 'completed' ? 'success' : 'warning'}`}>
-                    {t.status === 'completed' ? 'مكتمل' : 'قيد المعالجة'}
+                  <span className={`badge-status ${trx.status === 'completed' ? 'success' : 'warning'}`}>
+                    {trx.status === 'completed' ? 'مكتمل' : 'قيد المعالجة'}
                   </span>
                 </td>
               </tr>
@@ -104,25 +104,25 @@ export default function TransfersPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">تحويل رصيد جديد</h3>
+              <h3 className="modal-title">{t('تحويل رصيد جديد')}</h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
             </div>
             <div className="form-group">
-              <label className="form-label">اسم مستخدم المستلم</label>
+              <label className="form-label">{t('اسم مستخدم المستلم')}</label>
               <div style={{ position:'relative' }}>
                 <FiUser style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)' }} />
-                <input className="form-input" style={{ paddingRight:36 }} placeholder="مثال: gro_ahmed" 
+                <input className="form-input" style={{ paddingRight:36 }} placeholder={t("مثال: gro_ahmed")} 
                   value={form.username} onChange={e => setForm({...form, username: e.target.value})} />
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">المبلغ (د.ج)</label>
-              <input className="form-input" type="number" placeholder="أدخل المبلغ المراد تحويله" 
+              <label className="form-label">{t('المبلغ (د.ج)')}</label>
+              <input className="form-input" type="number" placeholder={t("أدخل المبلغ المراد تحويله")} 
                 value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
             </div>
             <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center', marginTop:16 }} 
               onClick={handleTransfer} disabled={sending || !form.username || !form.amount}>
-              {sending ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSend size={14} style={{marginLeft:4}}/> تأكيد التحويل</>}
+              {sending ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSend size={14} style={{marginLeft:4}}/>{t('تأكيد التحويل')}</>}
             </button>
           </div>
         </div>

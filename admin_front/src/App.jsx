@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store } from './redux/store';
 import { fetchMe, setInitialized } from './redux/authSlice';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 import Layout from './layouts/Layout';
 import LoginPage from './pages/LoginPage';
@@ -72,8 +73,10 @@ export default function App() {
   }, []);
 
   return (
-    <Provider store={store}>
-      <AppRoutes />
-    </Provider>
+    <LanguageProvider>
+      <Provider store={store}>
+        <AppRoutes />
+      </Provider>
+    </LanguageProvider>
   );
 }

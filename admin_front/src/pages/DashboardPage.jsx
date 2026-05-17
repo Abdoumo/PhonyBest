@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { FiDollarSign, FiActivity, FiAlertTriangle, FiCpu, FiUsers, FiTrendingUp } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import API from '../api/axios';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const mockChart = Array.from({ length: 30 }, (_, i) => ({
   date: `مايو ${i + 1}`,
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [ads, setAds] = useState([]);
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
+  const { t } = useLanguage();
 
   useEffect(() => {
     API.get('/dashboard/stats')
@@ -56,26 +58,26 @@ export default function DashboardPage() {
   const chart = stats?.chartData?.length ? stats.chartData : mockChart;
 
   const statCards = [
-    { label: "رصيدي الحالي", value: `${(s.myWalletBalance || 0).toLocaleString()} د.ج`, icon: FiDollarSign, color: 'success' },
-    { label: "أرباح اليوم", value: `${(s.todayEarnings || 0).toLocaleString()} د.ج`, icon: FiTrendingUp, color: 'accent', trend: '+12.5%', up: true },
-    { label: 'المعاملات', value: s.totalTransactions || 0, icon: FiActivity, color: 'info', trend: '+8.3%', up: true },
-    { label: 'عمليات فاشلة', value: s.failedOperations || 0, icon: FiAlertTriangle, color: 'danger', trend: '-2.1%', up: false },
-    isAdmin && { label: 'شرائح نشطة', value: s.activeSims || 0, icon: FiCpu, color: 'success' },
-    isAdmin && { label: 'إجمالي المحافظ (للكل)', value: `${(s.totalWalletBalance || 0).toLocaleString()} د.ج`, icon: FiUsers, color: 'warning' },
+    { label: t("رصيدي الحالي"), value: `${(s.myWalletBalance || 0).toLocaleString()} ${t('د.ج')}`, icon: FiDollarSign, color: 'success' },
+    { label: t("أرباح اليوم"), value: `${(s.todayEarnings || 0).toLocaleString()} ${t('د.ج')}`, icon: FiTrendingUp, color: 'accent', trend: '+12.5%', up: true },
+    { label: t('المعاملات'), value: s.totalTransactions || 0, icon: FiActivity, color: 'info', trend: '+8.3%', up: true },
+    { label: t('عمليات فاشلة'), value: s.failedOperations || 0, icon: FiAlertTriangle, color: 'danger', trend: '-2.1%', up: false },
+    isAdmin && { label: t('شرائح نشطة'), value: s.activeSims || 0, icon: FiCpu, color: 'success' },
+    isAdmin && { label: t('إجمالي المحافظ (للكل)'), value: `${(s.totalWalletBalance || 0).toLocaleString()} ${t('د.ج')}`, icon: FiUsers, color: 'warning' },
   ].filter(Boolean);
 
-  const statusMap = { success: 'ناجح', failed: 'فاشل', processing: 'قيد المعالجة' };
-  const typeMap = { flexy: 'فليكسي', idoom: 'أيدوم', card: 'بطاقة' };
+  const statusMap = { success: t('ناجح'), failed: t('فاشل'), processing: t('قيد المعالجة') };
+  const typeMap = { flexy: t('فليكسي'), idoom: t('أيدوم'), card: t('بطاقة') };
 
   return (
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">لوحة القيادة</h1>
-          <p className="page-subtitle">مرحباً بعودتك! إليك نظرة عامة.</p>
+          <h1 className="page-title">{t('لوحة القيادة')}</h1>
+          <p className="page-subtitle">{t('مرحباً بعودتك! إليك نظرة عامة.')}</p>
         </div>
         <button className="btn btn-primary">
-          <FiActivity size={14} /> إنشاء تقرير
+          <FiActivity size={14} /> {t('إنشاء تقرير')}
         </button>
       </div>
 
@@ -110,7 +112,7 @@ export default function DashboardPage() {
               <p className="stat-value">{c.value}</p>
               {c.trend && (
                 <p className={`stat-trend ${c.up ? 'up' : 'down'}`}>
-                  {c.trend} مقارنة بالأمس
+                  {c.trend} {t('مقارنة بالأمس')}
                 </p>
               )}
             </div>
@@ -124,7 +126,7 @@ export default function DashboardPage() {
       <div className="grid-2" style={{ marginBottom: 24 }}>
         <div className="card">
           <div className="card-header">
-            <span className="card-title">نظرة عامة على الإيرادات (30 يومًا)</span>
+            <span className="card-title">{t('نظرة عامة على الإيرادات (30 يومًا)')}</span>
           </div>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
@@ -155,16 +157,16 @@ export default function DashboardPage() {
 
         <div className="card">
           <div className="card-header">
-            <span className="card-title">أحدث المعاملات</span>
+            <span className="card-title">{t('أحدث المعاملات')}</span>
           </div>
-          <div style={{ overflow:'auto', maxHeight:300 }}>
+          <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th>الرقم</th>
-                  <th>النوع</th>
-                  <th>المبلغ</th>
-                  <th>الحالة</th>
+                  <th>{t('الرقم')}</th>
+                  <th>{t('النوع')}</th>
+                  <th>{t('المبلغ')}</th>
+                  <th>{t('الحالة')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -178,7 +180,7 @@ export default function DashboardPage() {
                   <tr key={i}>
                     <td style={{ fontFamily:'monospace', fontWeight:600 }}>{tx.phone_number}</td>
                     <td style={{ textTransform:'capitalize' }}>{typeMap[tx.type] || tx.type}</td>
-                    <td style={{ fontWeight:600 }}>{tx.amount} د.ج</td>
+                    <td style={{ fontWeight:600 }}>{tx.amount} {t('د.ج')}</td>
                     <td>
                       <span className={`badge-status ${tx.status === 'success' ? 'success' : tx.status === 'failed' ? 'danger' : 'warning'}`}>
                         {statusMap[tx.status] || tx.status}

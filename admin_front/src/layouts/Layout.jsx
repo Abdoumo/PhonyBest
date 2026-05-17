@@ -6,8 +6,9 @@ import API from '../api/axios';
 import {
   FiHome, FiZap, FiWifi, FiCreditCard, FiGift, FiUsers,
   FiPercent, FiArrowUpRight, FiPackage, FiBarChart2, FiImage,
-  FiSettings, FiSearch, FiBell, FiLogOut, FiMoon, FiSun, FiFileText, FiList
+  FiSettings, FiSearch, FiBell, FiLogOut, FiMoon, FiSun, FiFileText, FiList, FiMenu, FiX, FiGlobe
 } from 'react-icons/fi';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const navItems = [
   { section: 'الرئيسية', items: [
@@ -37,9 +38,11 @@ export default function Layout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector(s => s.auth);
+  const { lang, toggleLang, t } = useLanguage();
 
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [globalSettings, setGlobalSettings] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     API.get('/settings').then(res => {
@@ -61,7 +64,18 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
-      <aside className="sidebar">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="sidebar-overlay" 
+          onClick={() => setIsSidebarOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 45, backdropFilter: 'blur(2px)'
+          }}
+        />
+      )}
+      
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
           <div className="logo">⚡</div>
           <h1>{user?.role === 'ADMIN' ? 'FLEXY GSM' : (user?.username || 'FLEXY GSM').toUpperCase()}</h1>
@@ -109,11 +123,12 @@ export default function Layout() {
 
             return (
               <div className="nav-section" key={section.section}>
-                <div className="nav-section-title">{section.section}</div>
+                <div className="nav-section-title">{t(section.section)}</div>
                 {filteredItems.map(item => (
                   <NavLink to={item.to} key={item.to}
+                    onClick={() => setIsSidebarOpen(false)}
                     className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                    <item.icon /> {item.label}
+                    <item.icon /> {t(item.label)}
                   </NavLink>
                 ))}
               </div>
@@ -123,7 +138,7 @@ export default function Layout() {
         <div style={{ padding:'12px 8px', borderTop:'1px solid var(--border)' }}>
           <div className="nav-item" onClick={handleLogout}
             style={{ color:'var(--danger)' }}>
-            <FiLogOut /> تسجيل الخروج
+            <FiLogOut /> {t('تسجيل الخروج')}
           </div>
         </div>
       </aside>
@@ -131,12 +146,21 @@ export default function Layout() {
       <div className="main-content">
         <header className="header">
           <div className="header-left">
+            <button className="header-btn mobile-menu-btn" onClick={() => setIsSidebarOpen(true)}>
+              <FiMenu size={20} />
+            </button>
             <div className="header-search">
               <FiSearch />
-              <input placeholder="ابحث عن أي شيء..." />
+              <input placeholder={t('ابحث عن أي شيء...')} />
             </div>
           </div>
           <div className="header-right">
+            <button className="header-btn" onClick={toggleLang} title={lang === 'ar' ? 'Français' : 'العربية'}>
+              <FiGlobe size={16} />
+              <span style={{ fontSize: '10px', fontWeight: 'bold', marginLeft: '4px' }}>
+                {lang === 'ar' ? 'FR' : 'AR'}
+              </span>
+            </button>
             <button className="header-btn" onClick={toggleTheme}>
               {theme === 'dark' ? <FiSun size={16} /> : <FiMoon size={16} />}
             </button>

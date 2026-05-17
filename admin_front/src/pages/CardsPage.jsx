@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useSelector } from 'react-redux';
 import { FiCreditCard, FiUpload, FiSearch, FiFilter, FiShoppingCart } from 'react-icons/fi';
 import API from '../api/axios';
@@ -14,6 +15,7 @@ const categories = [
 ];
 
 export default function CardsPage() {
+  const { t } = useLanguage();
   const { user } = useSelector(s => s.auth);
   const isAdmin = user?.role === 'ADMIN';
 
@@ -89,13 +91,13 @@ export default function CardsPage() {
       
       try {
         const { data } = await API.post('/cards/upload', { cards: parsedCards });
-        alert(`تم رفع البطاقات بنجاح!\nتم استيراد: ${data.imported}\nمكرر/فشل: ${data.duplicates}`);
+        alert(t('تم رفع البطاقات بنجاح') + `!\n${t('تم استيراد')}: ${data.imported}\n${t('مكرر/فشل')}: ${data.duplicates}`);
         setShowUploadModal(false);
         setTxtFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
         loadCards();
       } catch (err) {
-        alert('حدث خطأ أثناء الرفع');
+        alert(t('حدث خطأ أثناء الرفع'));
       }
     };
     reader.readAsText(txtFile);
@@ -105,11 +107,11 @@ export default function CardsPage() {
     if (!sendModal.phone) return;
     try {
       await API.post(`/cards/${sendModal.cardId}/send`, { phone_number: sendModal.phone });
-      alert('تم إرسال البطاقة بنجاح!');
+      alert(t('تم إرسال البطاقة بنجاح'));
       setSendModal({ show: false, cardId: null, phone: '' });
       loadCards();
     } catch (e) {
-      alert(e.response?.data?.error || 'حدث خطأ أثناء الإرسال');
+      alert(e.response?.data?.error || t('حدث خطأ أثناء الإرسال'));
     }
   };
 
@@ -117,12 +119,12 @@ export default function CardsPage() {
     if (!buyForm.value || buyForm.quantity < 1) return;
     try {
       await API.post('/cards/buy', { operator: selectedCat, value: buyForm.value, quantity: buyForm.quantity });
-      alert('تم شراء البطاقات بنجاح!');
+      alert(t('تم شراء البطاقات بنجاح'));
       setShowBuyModal(false);
       setBuyForm({ value: '', quantity: 1 });
       loadCards();
     } catch (e) {
-      alert(e.response?.data?.error || 'حدث خطأ أثناء الشراء');
+      alert(e.response?.data?.error || t('حدث خطأ أثناء الشراء'));
     }
   };
 
@@ -136,10 +138,10 @@ export default function CardsPage() {
 
   const getCatSummary = () => {
     if (isAdmin) {
-      return `(الإجمالي: ${pagination.total})`;
+      return `(${t('الإجمالي')}: ${pagination.total})`;
     } else {
       const storeCount = storeSummary.filter(s => s.operator === selectedCat).reduce((sum, s) => sum + parseInt(s.available_count), 0);
-      return `(مخزوني: ${pagination.total} | متاح للشراء: ${storeCount})`;
+      return `(${t('مخزوني')}: ${pagination.total} | ${t('متاح للشراء')}: ${storeCount})`;
     }
   };
 
@@ -147,19 +149,19 @@ export default function CardsPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">إدارة البطاقات</h1>
-          <p className="page-subtitle">إدارة مخزون البطاقات والمبيعات</p>
+          <h1 className="page-title">{t('إدارة البطاقات')}</h1>
+          <p className="page-subtitle">{t('إدارة مخزون البطاقات والمبيعات')}</p>
         </div>
         {isAdmin ? (
           <>
             <input type="file" accept=".txt" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
             <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
-              <FiUpload size={14} style={{marginLeft:4}}/> رفع بطاقات (TXT) لـ {categories.find(c => c.id === selectedCat)?.name}
+              <FiUpload size={14} style={{marginLeft:4}}/> {t('رفع بطاقات')} ({t(categories.find(c => c.id === selectedCat)?.name)})
             </button>
           </>
         ) : (
           <button className="btn btn-primary" onClick={() => setShowBuyModal(true)}>
-            <FiShoppingCart size={14} style={{marginLeft:4}}/> شراء بطاقات لـ {categories.find(c => c.id === selectedCat)?.name}
+            <FiShoppingCart size={14} style={{marginLeft:4}}/> {t('شراء بطاقات')} ({t(categories.find(c => c.id === selectedCat)?.name)})
           </button>
         )}
       </div>
@@ -178,7 +180,7 @@ export default function CardsPage() {
               {c.icon}
             </div>
             <div style={{ fontSize: 14, fontWeight: 600, color: selectedCat === c.id ? c.color : 'var(--text-secondary)' }}>
-              {c.name}
+              {t(c.name)}
             </div>
           </div>
         ))}
@@ -187,26 +189,26 @@ export default function CardsPage() {
       <div className="card">
         <div className="card-header" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="card-title">مخزون بطاقات {categories.find(c => c.id === selectedCat)?.name} {getCatSummary()}</span>
+            <span className="card-title">{t('مخزون بطاقات')} {t(categories.find(c => c.id === selectedCat)?.name)} {getCatSummary()}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
             {isAdmin && (
               <select className="form-select" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
-                <option value="all">المالك: الجميع</option>
-                <option value="mine">مخزوني فقط (متاح للبيع)</option>
-                <option value="others">مباعة للموزعين</option>
+                <option value="all">{t('المالك')}: {t('الجميع')}</option>
+                <option value="mine">{t('مخزوني فقط (متاح للبيع)')}</option>
+                <option value="others">{t('مباعة للموزعين')}</option>
               </select>
             )}
             <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">الحالة: الكل</option>
-              <option value="available">متاح</option>
-              <option value="sold">مباع/مستخدم</option>
+              <option value="">{t('الحالة')}: {t('الكل')}</option>
+              <option value="available">{t('متاح')}</option>
+              <option value="sold">{t('مباع/مستخدم')}</option>
             </select>
-            <input className="form-input" type="number" placeholder="فئة السعر (مثال: 1000)" value={valueFilter} onChange={e => setValueFilter(e.target.value)} />
+            <input className="form-input" type="number" placeholder={t("فئة السعر (مثال: 1000)")} value={valueFilter} onChange={e => setValueFilter(e.target.value)} />
             <input className="form-input" type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
             <div style={{ position: 'relative' }}>
               <FiSearch style={{ position: 'absolute', right: 12, top: 10, color: 'var(--text-muted)' }} />
-              <input style={{ paddingRight: 36, width: '100%', height: 38, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)' }} placeholder="البحث بالسيريال أو PIN..." value={search} onChange={e => setSearch(e.target.value)} />
+              <input style={{ paddingRight: 36, width: '100%', height: 38, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)' }} placeholder={t("البحث بالسيريال أو PIN...")} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           </div>
         </div>
@@ -215,21 +217,20 @@ export default function CardsPage() {
           {loading ? (
             <div style={{ textAlign:'center', padding: 40 }}><span className="spinner" style={{ margin:'0 auto' }}/></div>
           ) : filteredCards.length === 0 ? (
-            <div style={{ textAlign:'center', padding: 40, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              لا توجد بطاقات مطابقة.<br/>
-              {isAdmin ? 'قم برفع ملف بطاقات أو تأكد من خيارات الفلترة.' : 'مخزونك فارغ، قم بشراء بطاقات من المتجر لتظهر هنا.'}
+            <div style={{ textAlign:'center', padding: 40, color: 'var(--text-muted)', lineHeight: 1.6 }}>{t('لا توجد بطاقات مطابقة.')}<br/>
+              {isAdmin ? t('قم برفع ملف بطاقات أو تأكد من خيارات الفلترة.') : t('مخزونك فارغ، قم بشراء بطاقات من المتجر لتظهر هنا.')}
             </div>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th>السيريال (Serial)</th>
-                  <th>رمز الشحن (PIN)</th>
-                  <th>القيمة (Value)</th>
-                  <th>الحالة</th>
-                  {isAdmin && <th>المالك الحالي</th>}
-                  <th>تاريخ الإضافة</th>
-                  <th>إجراءات</th>
+                  <th>{t('السيريال')} (Serial)</th>
+                  <th>{t('رمز الشحن')} (PIN)</th>
+                  <th>{t('القيمة')} (Value)</th>
+                  <th>{t('الحالة')}</th>
+                  {isAdmin && <th>{t('المالك الحالي')}</th>}
+                  <th>{t('تاريخ الإضافة')}</th>
+                  <th>{t('إجراءات')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -240,35 +241,33 @@ export default function CardsPage() {
                     <td style={{ fontWeight: 600 }}>{c.value}</td>
                     <td>
                       <span className={`badge-status ${c.status === 'available' ? 'success' : 'danger'}`}>
-                        {c.status === 'available' ? 'متاح' : 'مباع/مستخدم'}
+                        {c.status === 'available' ? t('متاح') : t('مباع/مستخدم')}
                       </span>
                     </td>
                     {isAdmin && (
                       <td style={{ fontSize: 13, fontWeight: 600, color: c.uploaded_by === user.id ? 'var(--success)' : 'var(--accent)' }}>
-                        {c.uploaded_by === user.id ? 'الإدارة (مخزوني)' : c.owner_name}
+                        {c.uploaded_by === user.id ? t('الإدارة (مخزوني)') : c.owner_name}
                       </td>
                     )}
                     <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(c.created_at).toLocaleString('ar-DZ')}</td>
                     <td style={{ display: 'flex', gap: 8 }}>
                       {c.status === 'available' && c.uploaded_by === user.id && (
                         <>
-                          <button className="btn btn-sm btn-primary" onClick={() => setSendModal({ show: true, cardId: c.id, phone: '' })}>
-                            إرسال لرقم
-                          </button>
+                          <button className="btn btn-sm btn-primary" onClick={() => setSendModal({ show: true, cardId: c.id, phone: '' })}>{t('إرسال لرقم')}</button>
                           <button className="btn btn-sm btn-secondary" onClick={async () => {
-                            if (window.confirm('هل أنت متأكد من تعيين هذه البطاقة كمباعة/مستخدمة؟')) {
+                            if (window.confirm(t('هل أنت متأكد من تعيين هذه البطاقة كمباعة/مستخدمة؟'))) {
                               try {
                                 await API.put(`/cards/${c.id}/used`);
                                 loadCards();
                               } catch (e) {
-                                alert('حدث خطأ');
+                                alert(t('حدث خطأ'));
                               }
                             }
-                          }}>تحديد كمستخدمة</button>
+                          }}>{t('تحديد كمستخدمة')}</button>
                         </>
                       )}
                       {isAdmin && c.uploaded_by !== user.id && c.status === 'available' && (
-                         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>مملوكة للموزع</span>
+                         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('مملوكة للموزع')}</span>
                       )}
                     </td>
                   </tr>
@@ -279,15 +278,11 @@ export default function CardsPage() {
           
           {pagination.pages > 1 && !loading && (
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
-              <button className="btn btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
-                الصفحة السابقة
-              </button>
+              <button className="btn btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>{t('الصفحة السابقة')}</button>
               <span style={{ padding: '4px 12px', background: 'var(--bg-input)', borderRadius: 4, fontSize: 13, display: 'flex', alignItems: 'center' }}>
-                صفحة {pagination.page} من {pagination.pages}
+                {t('صفحة')} {pagination.page} {t('من')} {pagination.pages}
               </span>
-              <button className="btn btn-sm" disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)}>
-                الصفحة التالية
-              </button>
+              <button className="btn btn-sm" disabled={page === pagination.pages} onClick={() => setPage(p => p + 1)}>{t('الصفحة التالية')}</button>
             </div>
           )}
         </div>
@@ -297,30 +292,28 @@ export default function CardsPage() {
         <div className="modal-overlay" onClick={() => setShowUploadModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">تكوين رفع الملف</h3>
+              <h3 className="modal-title">{t('تكوين رفع الملف')}</h3>
               <button className="modal-close" onClick={() => setShowUploadModal(false)}>×</button>
             </div>
             
             <div style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-muted)' }}>
-              الملف المختار: <strong style={{ color: 'var(--text-primary)' }}>{txtFile?.name}</strong>
+              {t('الملف المختار')}: <strong style={{ color: 'var(--text-primary)' }}>{txtFile?.name}</strong>
             </div>
 
             <div className="form-group">
-              <label className="form-label">صيغة الملف (ترتيب الأعمدة)</label>
+              <label className="form-label">{t('صيغة الملف (ترتيب الأعمدة)')}</label>
               <select className="form-select" value={uploadFormat} onChange={e => setUploadFormat(e.target.value)}>
-                <option value="serial_pin">السيريال, كود الشحن (Serial ثم PIN)</option>
-                <option value="pin_serial">كود الشحن, السيريال (PIN ثم Serial)</option>
+                <option value="serial_pin">{t('السيريال')}, {t('كود الشحن')} (Serial → PIN)</option>
+                <option value="pin_serial">{t('كود الشحن')}, {t('السيريال')} (PIN → Serial)</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label className="form-label">قيمة البطاقات (فئة السعر)</label>
+              <label className="form-label">{t('قيمة البطاقات (فئة السعر)')}</label>
               <input className="form-input" type="number" value={uploadValue} onChange={e => setUploadValue(Number(e.target.value))} />
             </div>
 
-            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={processUpload}>
-              بدء الرفع
-            </button>
+            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={processUpload}>{t('بدء الرفع')}</button>
           </div>
         </div>
       )}
@@ -329,18 +322,16 @@ export default function CardsPage() {
         <div className="modal-overlay" onClick={() => setSendModal({ show: false, cardId: null, phone: '' })}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">إرسال البطاقة</h3>
+              <h3 className="modal-title">{t('إرسال البطاقة')}</h3>
               <button className="modal-close" onClick={() => setSendModal({ show: false, cardId: null, phone: '' })}>×</button>
             </div>
             
             <div className="form-group">
-              <label className="form-label">رقم هاتف المستلم</label>
-              <input className="form-input" placeholder="مثال: 0550000000" value={sendModal.phone} onChange={e => setSendModal({...sendModal, phone: e.target.value})} />
+              <label className="form-label">{t('رقم هاتف المستلم')}</label>
+              <input className="form-input" placeholder={t("مثال: 0550000000")} value={sendModal.phone} onChange={e => setSendModal({...sendModal, phone: e.target.value})} />
             </div>
 
-            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={handleSendCard}>
-              تأكيد الإرسال
-            </button>
+            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={handleSendCard}>{t('تأكيد الإرسال')}</button>
           </div>
         </div>
       )}
@@ -349,37 +340,35 @@ export default function CardsPage() {
         <div className="modal-overlay" onClick={() => setShowBuyModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">شراء بطاقات {categories.find(c => c.id === selectedCat)?.name}</h3>
+              <h3 className="modal-title">{t('شراء بطاقات')} {categories.find(c => c.id === selectedCat)?.name}</h3>
               <button className="modal-close" onClick={() => setShowBuyModal(false)}>×</button>
             </div>
             
             <div className="form-group">
-              <label className="form-label">فئة البطاقة (السعر)</label>
+              <label className="form-label">{t('فئة البطاقة (السعر)')}</label>
               <select className="form-select" value={buyForm.value} onChange={e => setBuyForm({...buyForm, value: e.target.value})}>
-                <option value="">-- اختر الفئة --</option>
+                <option value="">-- {t('اختر الفئة')} --</option>
                 {availableStoreValues.map(v => (
                   <option key={v.value} value={v.value}>
-                    {v.value} د.ج (متاح: {v.available_count})
+                    {v.value} {t('د.ج')} ({t('متاح')}: {v.available_count})
                   </option>
                 ))}
               </select>
             </div>
 
             <div className="form-group">
-              <label className="form-label">الكمية المطلوبة</label>
+              <label className="form-label">{t('الكمية المطلوبة')}</label>
               <input className="form-input" type="number" min="1" value={buyForm.quantity} onChange={e => setBuyForm({...buyForm, quantity: Number(e.target.value)})} />
             </div>
 
             <div style={{ padding: 12, background: 'var(--bg-input)', borderRadius: 8, marginBottom: 16, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-              <span>التكلفة الإجمالية:</span>
+              <span>{t('التكلفة الإجمالية')}:</span>
               <strong style={{ color: 'var(--primary)' }}>
-                {buyForm.value ? (Number(buyForm.value) * buyForm.quantity).toLocaleString() : 0} د.ج
+                {buyForm.value ? (Number(buyForm.value) * buyForm.quantity).toLocaleString() : 0} {t('د.ج')}
               </strong>
             </div>
 
-            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleBuyCards} disabled={!buyForm.value || buyForm.quantity < 1}>
-              تأكيد الشراء
-            </button>
+            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleBuyCards} disabled={!buyForm.value || buyForm.quantity < 1}>{t('تأكيد الشراء')}</button>
           </div>
         </div>
       )}
