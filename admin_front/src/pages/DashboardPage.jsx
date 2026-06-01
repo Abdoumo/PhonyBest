@@ -58,7 +58,7 @@ export default function DashboardPage() {
   const chart = stats?.chartData?.length ? stats.chartData : mockChart;
 
   const statCards = [
-    { label: t("رصيدي الحالي"), value: `${(s.myWalletBalance || 0).toLocaleString()} ${t('د.ج')}`, icon: FiDollarSign, color: 'success' },
+    { label: t("رصيدي الحالي"), value: isAdmin ? t('لا محدود') : `${(s.myWalletBalance || 0).toLocaleString()} ${t('د.ج')}`, icon: FiDollarSign, color: 'success' },
     { label: t("أرباح اليوم"), value: `${(s.todayEarnings || 0).toLocaleString()} ${t('د.ج')}`, icon: FiTrendingUp, color: 'accent', trend: '+12.5%', up: true },
     { label: t('المعاملات'), value: s.totalTransactions || 0, icon: FiActivity, color: 'info', trend: '+8.3%', up: true },
     { label: t('عمليات فاشلة'), value: s.failedOperations || 0, icon: FiAlertTriangle, color: 'danger', trend: '-2.1%', up: false },

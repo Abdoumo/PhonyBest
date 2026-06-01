@@ -64,9 +64,12 @@ const transfer = async (req, res) => {
 
     if (!recipientId || !amount || amount <= 0) return res.status(400).json({ error: 'يجب تحديد المستلم والمبلغ الصالح' });
     if (recipientId === req.user.id) return res.status(400).json({ error: 'لا يمكنك التحويل لنفسك' });
-    const from = await query('SELECT wallet FROM users WHERE id=$1', [req.user.id]);
-    if (parseFloat(from.rows[0].wallet) < amount) return res.status(400).json({ error: 'رصيد غير كافٍ' });
-    await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [amount, req.user.id]);
+    const from = await query('SELECT wallet, role FROM users WHERE id=$1', [req.user.id]);
+    const isTransferAdmin = from.rows[0].role === 'ADMIN';
+    if (!isTransferAdmin && parseFloat(from.rows[0].wallet) < amount) return res.status(400).json({ error: 'رصيد غير كافٍ' });
+    if (!isTransferAdmin) {
+      await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [amount, req.user.id]);
+    }
     await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [amount, recipientId]);
     await query(`INSERT INTO transfers (from_user,to_user,amount,type,notes,status) VALUES ($1,$2,$3,'transfer',$4,'completed')`, [req.user.id, recipientId, amount, notes||null]);
     await query(`INSERT INTO transactions (type,amount,status,client_id,processed_by) VALUES ('transfer',$1,'success',$2,$3)`, [amount, recipientId, req.user.id]);

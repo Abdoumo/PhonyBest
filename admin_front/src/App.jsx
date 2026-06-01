@@ -20,6 +20,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import AdsPage from './pages/AdsPage';
 import SettingsPage from './pages/SettingsPage';
 import TransactionsPage from './pages/TransactionsPage';
+import SecurityKeyPage from './pages/SecurityKeyPage';
 
 function ProtectedRoute({ children }) {
   const { user, initialized } = useSelector(s => s.auth);
@@ -59,6 +60,7 @@ function AppRoutes() {
           <Route path="ads" element={<AdsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
+          <Route path="security-key" element={<SecurityKeyPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

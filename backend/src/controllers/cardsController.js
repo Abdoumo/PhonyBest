@@ -125,9 +125,10 @@ const buyCards = async (req, res) => {
       }
     }
 
-    const userRes = await query(`SELECT wallet FROM users WHERE id=$1`, [req.user.id]);
+    const userRes = await query(`SELECT wallet, role FROM users WHERE id=$1`, [req.user.id]);
     const wallet = parseFloat(userRes.rows[0].wallet);
-    if (wallet < totalCost) return res.status(400).json({ error: 'الرصيد غير كافٍ لشراء هذه البطاقات' });
+    const isAdmin = userRes.rows[0].role === 'ADMIN';
+    if (!isAdmin && wallet < totalCost) return res.status(400).json({ error: 'الرصيد غير كافٍ لشراء هذه البطاقات' });
 
     const cards = await query(
       `SELECT id FROM cards WHERE operator=$1 AND value=$2 AND status='available' AND uploaded_by != $3 LIMIT $4`,
@@ -138,7 +139,9 @@ const buyCards = async (req, res) => {
 
     const cardIds = cards.rows.map(c => c.id);
 
-    await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [totalCost, req.user.id]);
+    if (!isAdmin) {
+      await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [totalCost, req.user.id]);
+    }
     await query(`UPDATE cards SET uploaded_by=$1 WHERE id = ANY($2::int[])`, [req.user.id, cardIds]);
     await query(
       `INSERT INTO transactions (type, operator, amount, cost, profit, status, client_id, processed_by, metadata) 
@@ -157,16 +160,19 @@ const sellCard = async (req, res) => {
   try {
     const { operator, value, client_id } = req.body;
 
-    const userRes = await query(`SELECT wallet FROM users WHERE id=$1`, [req.user.id]);
+    const userRes = await query(`SELECT wallet, role FROM users WHERE id=$1`, [req.user.id]);
     const wallet = parseFloat(userRes.rows[0].wallet);
-    if (wallet < parseFloat(value)) {
+    const isSellAdmin = userRes.rows[0].role === 'ADMIN';
+    if (!isSellAdmin && wallet < parseFloat(value)) {
       return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام العملية' });
     }
 
     const card = await query(`SELECT * FROM cards WHERE operator=$1 AND value=$2 AND status='available' AND uploaded_by=$3 LIMIT 1`, [operator, value, req.user.id]);
     if (card.rows.length === 0) return res.status(404).json({ error: 'No cards available in your stock' });
 
-    await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [value, req.user.id]);
+    if (!isSellAdmin) {
+      await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [value, req.user.id]);
+    }
     await query(`UPDATE cards SET status='sold', sold_to=$1, sold_at=NOW() WHERE id=$2`, [client_id || req.user.id, card.rows[0].id]);
     await query(`INSERT INTO transactions (type,operator,amount,status,client_id,processed_by,metadata) VALUES ('card',$1,$2,'success',$3,$4,$5)`,
       [operator, value, client_id || req.user.id, req.user.id, JSON.stringify({ card_id: card.rows[0].id })]);
@@ -195,13 +201,16 @@ const sendSpecificCard = async (req, res) => {
     if (cardRes.rows.length === 0) return res.status(400).json({ error: 'Card not available or not owned by you' });
     const card = cardRes.rows[0];
 
-    const userRes = await query(`SELECT wallet FROM users WHERE id=$1`, [req.user.id]);
+    const userRes = await query(`SELECT wallet, role FROM users WHERE id=$1`, [req.user.id]);
     const wallet = parseFloat(userRes.rows[0].wallet);
-    if (wallet < parseFloat(card.value)) {
+    const isSendAdmin = userRes.rows[0].role === 'ADMIN';
+    if (!isSendAdmin && wallet < parseFloat(card.value)) {
       return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام العملية' });
     }
 
-    await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [card.value, req.user.id]);
+    if (!isSendAdmin) {
+      await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [card.value, req.user.id]);
+    }
     await query(`UPDATE cards SET status='sold', sold_at=NOW() WHERE id=$1`, [id]);
     await query(`INSERT INTO transactions (type, operator, phone_number, amount, status, client_id, processed_by, metadata) VALUES ('card', $1, $2, $3, 'success', $4, $4, $5)`,
       [card.operator, phone_number, card.value, req.user.id, JSON.stringify({ card_id: id })]);

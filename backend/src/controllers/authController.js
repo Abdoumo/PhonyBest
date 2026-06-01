@@ -64,6 +64,13 @@ const login = async (req, res) => {
       [user.id, req.ip, req.headers['user-agent'], 'login']
     );
 
+    // Check if user requires USB auth (has an active key)
+    const usbKeyResult = await query(
+      "SELECT id FROM usb_auth_keys WHERE user_id = $1 AND status = 'active'",
+      [user.id]
+    );
+    const usbAuthRequired = usbKeyResult.rows.length > 0;
+
     res.json({
       success: true,
       user: {
@@ -74,6 +81,7 @@ const login = async (req, res) => {
         role: user.role,
         wallet: parseFloat(user.wallet),
         debt: parseFloat(user.debt),
+        usb_auth_required: usbAuthRequired,
       },
       ...tokens,
     });
@@ -154,7 +162,16 @@ const logout = async (req, res) => {
  */
 const getMe = async (req, res) => {
   try {
-    res.json({ success: true, user: req.user });
+    const user = { ...req.user };
+    
+    // Check if user requires USB auth (has an active key)
+    const usbKeyResult = await query(
+      "SELECT id FROM usb_auth_keys WHERE user_id = $1 AND status = 'active'",
+      [user.id]
+    );
+    user.usb_auth_required = usbKeyResult.rows.length > 0;
+
+    res.json({ success: true, user });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }

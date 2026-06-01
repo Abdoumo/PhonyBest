@@ -988,3 +988,496 @@ tbody tr:last-child td {
     font-size: 20px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   USB Security Key Page Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+.usb-auth-page {
+  position: relative;
+}
+
+/* Toast */
+.usb-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 200;
+  animation: toastSlideIn 0.3s ease-out;
+  box-shadow: var(--shadow-lg);
+}
+
+.usb-toast.success {
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: #fff;
+}
+
+.usb-toast.error {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: #fff;
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Stats Grid */
+.usb-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.usb-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: var(--transition);
+}
+
+.usb-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.usb-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.usb-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.usb-stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.usb-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Generate Section */
+.usb-generate-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.usb-generate-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e0b, #d97706, #b45309);
+}
+
+.usb-generate-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.usb-generate-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.usb-generate-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Tabs */
+.usb-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 8px 8px 0;
+}
+
+.usb-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: var(--transition);
+  border-bottom: 2px solid transparent;
+}
+
+.usb-tab:hover {
+  color: var(--text-primary);
+  background: rgba(99, 102, 241, 0.06);
+}
+
+.usb-tab.active {
+  color: var(--accent-hover);
+  background: rgba(99, 102, 241, 0.1);
+  border-bottom-color: var(--accent);
+}
+
+.usb-tab-refresh {
+  margin-inline-start: auto;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.usb-tab-refresh:hover {
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.usb-tab-refresh .spin {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Table Wrapper */
+.usb-table-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow-x: auto;
+  margin-bottom: 24px;
+}
+
+/* Serial Code */
+.usb-serial-code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 4px;
+  color: var(--accent-hover);
+  letter-spacing: 0.5px;
+}
+
+/* Status Badge */
+.usb-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.usb-status-badge.active {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.usb-status-badge.revoked,
+.usb-status-badge.expired {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* Role Badge */
+.usb-role-badge {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.usb-role-badge.role-admin {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+  color: #a78bfa;
+}
+
+.usb-role-badge.role-super_gro {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.usb-role-badge.role-gro {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+.usb-role-badge.role-commercant {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.usb-role-badge.role-client {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted);
+}
+
+/* Action Buttons */
+.usb-action-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.usb-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.usb-action-btn.danger:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.usb-action-btn.reset:hover {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.usb-action-btn.download:hover {
+  background: var(--info-bg);
+  color: var(--info);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* Instructions */
+.usb-instructions {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.usb-instructions::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), #a78bfa, #c4b5fd);
+}
+
+.usb-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.usb-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.usb-step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.usb-step strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.usb-step p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* USB Session Guard Overlay */
+.usb-session-guard {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.usb-session-guard-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px;
+  text-align: center;
+  max-width: 440px;
+  box-shadow: var(--shadow-lg);
+  animation: fadeIn 0.5s ease;
+}
+
+.usb-guard-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin: 0 auto 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.usb-guard-icon.waiting {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.15));
+  color: #f59e0b;
+  animation: pulse 2s ease infinite;
+}
+
+.usb-guard-icon.connected {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15));
+  color: #10b981;
+}
+
+.usb-guard-icon.error {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.15));
+  color: #ef4444;
+}
+
+.usb-session-guard-card h2 {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.usb-session-guard-card p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.usb-guard-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-radius: 24px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 20px;
+}
+
+.usb-guard-status.polling {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.usb-guard-status.active {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.usb-guard-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.5s ease infinite;
+}
+
+/* Responsive USB auth page */
+@media (max-width: 1200px) {
+  .usb-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .usb-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .usb-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .usb-steps {
+    grid-template-columns: 1fr;
+  }
+  .usb-generate-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .usb-generate-controls select {
+    max-width: none !important;
+  }
+}

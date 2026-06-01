@@ -3,10 +3,11 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../redux/authSlice';
 import API from '../api/axios';
+import UsbSessionGuard from '../components/UsbSessionGuard';
 import {
   FiHome, FiZap, FiWifi, FiCreditCard, FiGift, FiUsers,
   FiPercent, FiArrowUpRight, FiPackage, FiBarChart2, FiImage,
-  FiSettings, FiSearch, FiBell, FiLogOut, FiMoon, FiSun, FiFileText, FiList, FiMenu, FiX, FiGlobe
+  FiSettings, FiSearch, FiBell, FiLogOut, FiMoon, FiSun, FiFileText, FiList, FiMenu, FiX, FiGlobe, FiShield
 } from 'react-icons/fi';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -30,6 +31,7 @@ const navItems = [
   { section: 'النظام', items: [
     { to: '/analytics', icon: FiBarChart2, label: 'التحليلات' },
     { to: '/ads', icon: FiImage, label: 'الإعلانات' },
+    { to: '/security-key', icon: FiShield, label: 'مفاتيح الأمان' },
     { to: '/settings', icon: FiSettings, label: 'الإعدادات' },
   ]},
 ];
@@ -43,12 +45,15 @@ export default function Layout() {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [globalSettings, setGlobalSettings] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  const usbGuardEnabled = user?.usb_auth_required || (globalSettings?.usb_auth_enabled === 'true' || globalSettings?.usb_auth_enabled === true);
 
   useEffect(() => {
     API.get('/settings').then(res => {
-      setGlobalSettings(res.data.settings || {});
+      const settings = res.data.settings || {};
+      setGlobalSettings(settings);
     }).catch(e => console.error(e));
-  }, []);
+  }, [user]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -101,13 +106,13 @@ export default function Layout() {
               if (id === 'dashboard') return true;
               
               // If user has personal permissions, use those (override)
-              if (perms.length > 0) return perms.includes(id);
+              if (perms.length > 0) return perms.includes(id) || (id === 'security-key' && perms.includes('usb-auth'));
 
               // Check if we have global dynamic role permissions
               if (globalSettings && globalSettings[`role_perms_${user?.role}`]) {
                 const rolePerms = globalSettings[`role_perms_${user.role}`];
                 const parsed = Array.isArray(rolePerms) ? rolePerms : JSON.parse(rolePerms || '[]');
-                return parsed.includes(id);
+                return parsed.includes(id) || (id === 'security-key' && parsed.includes('usb-auth'));
               }
 
               // Otherwise fallback to sensible defaults
@@ -180,7 +185,9 @@ export default function Layout() {
           </div>
         </header>
         <main className="page">
-          <Outlet />
+          <UsbSessionGuard enabled={usbGuardEnabled}>
+            <Outlet />
+          </UsbSessionGuard>
         </main>
       </div>
     </div>

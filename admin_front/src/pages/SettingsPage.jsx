@@ -25,6 +25,7 @@ export default function SettingsPage() {
     { id: 'dashboard', name: 'لوحة القيادة' },
     { id: 'flexy', name: 'فليكسي' },
     { id: 'idoom', name: 'أيدوم' },
+    { id: 'security-key', name: 'مفاتيح الأمان' },
     { id: 'cards', name: 'البطاقات' },
     { id: 'card-orders', name: 'طلبات البطاقات' },
     { id: 'clients', name: 'العملاء' },
@@ -37,9 +38,9 @@ export default function SettingsPage() {
   ];
 
   const defaultRolePerms = {
-    'SUPER_GRO': ['dashboard', 'flexy', 'idoom', 'cards', 'card-orders', 'clients', 'transfers', 'stock'],
-    'GROSIST': ['dashboard', 'flexy', 'idoom', 'cards', 'transfers'],
-    'COMMERCANT': ['dashboard', 'flexy', 'idoom', 'cards']
+    'SUPER_GRO': ['dashboard', 'flexy', 'idoom', 'cards', 'card-orders', 'clients', 'transfers', 'stock', 'security-key'],
+    'GROSIST': ['dashboard', 'flexy', 'idoom', 'cards', 'transfers', 'security-key'],
+    'COMMERCANT': ['dashboard', 'flexy', 'idoom', 'cards', 'security-key']
   };
 
   const load = async () => {

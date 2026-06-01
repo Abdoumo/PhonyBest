@@ -204,6 +204,33 @@ const createTables = async () => {
       );
     `);
 
+    // USB auth keys table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS usb_auth_keys (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        token_hash VARCHAR(255) NOT NULL,
+        usb_serial VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','revoked')),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // USB sessions table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS usb_sessions (
+        id SERIAL PRIMARY KEY,
+        session_id VARCHAR(255) UNIQUE NOT NULL,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        usb_serial VARCHAR(255) NOT NULL,
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','expired')),
+        last_heartbeat TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW(),
+        ended_at TIMESTAMP
+      );
+    `);
+
     // Create indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_client ON transactions(client_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);`);
@@ -214,6 +241,9 @@ const createTables = async () => {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_usb_sessions_user ON usb_sessions(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_usb_sessions_status ON usb_sessions(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_usb_auth_keys_user ON usb_auth_keys(user_id);`);
 
     // Create default admin user
     const adminExists = await client.query(`SELECT id FROM users WHERE username = 'admin'`);

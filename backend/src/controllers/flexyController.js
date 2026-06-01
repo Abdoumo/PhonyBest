@@ -14,10 +14,11 @@ const sendFlexy = async (req, res) => {
       return res.status(400).json({ error: 'Invalid operator' });
     }
 
-    // Check wallet balance
+    // Check wallet balance (ADMIN has infinite virtual balance)
+    const isAdmin = req.user.role === 'ADMIN';
     const userResult = await query('SELECT wallet FROM users WHERE id = $1', [userId]);
     const wallet = parseFloat(userResult.rows[0].wallet);
-    if (wallet < amount) {
+    if (!isAdmin && wallet < amount) {
       return res.status(400).json({ error: 'Insufficient wallet balance' });
     }
 
@@ -36,8 +37,10 @@ const sendFlexy = async (req, res) => {
       [operator.toLowerCase(), number, amount, offer || null, simUsed, userId]
     );
 
-    // Deduct wallet
-    await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [amount, userId]);
+    // Deduct wallet (skip for ADMIN)
+    if (!isAdmin) {
+      await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [amount, userId]);
+    }
 
     // Update SIM usage
     if (simResult.rows.length > 0) {
@@ -76,8 +79,8 @@ const sendFlexy = async (req, res) => {
         clientProfit = amount - clientCost;
         adminProfit = clientCost - adminCost;
         
-        // Give client profit back to their wallet
-        if (clientProfit > 0) {
+        // Give client profit back to their wallet (skip for ADMIN)
+        if (clientProfit > 0 && !isAdmin) {
           await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [clientProfit, userId]);
         }
       }
@@ -166,14 +169,17 @@ const bulkFlexy = async (req, res) => {
     }
 
     const totalAmount = operations.reduce((sum, op) => sum + parseFloat(op.amount || 0), 0);
+    const isAdminBulk = req.user.role === 'ADMIN';
     const userResult = await query('SELECT wallet FROM users WHERE id = $1', [req.user.id]);
     const wallet = parseFloat(userResult.rows[0].wallet);
 
-    if (wallet < totalAmount) {
+    if (!isAdminBulk && wallet < totalAmount) {
       return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام كل العمليات' });
     }
 
-    await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [totalAmount, req.user.id]);
+    if (!isAdminBulk) {
+      await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [totalAmount, req.user.id]);
+    }
 
     const results = [];
     for (const op of operations) {

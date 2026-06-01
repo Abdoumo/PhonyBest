@@ -123,7 +123,7 @@ export default function ClientsPage() {
                 </td>
                 <td><span className="badge-status info">{u.role}</span></td>
                 <td>
-                  <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{t('رصيد')}: {parseFloat(u.wallet || 0).toLocaleString()} {t('د.ج')}</div>
+                  <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{t('رصيد')}: {u.role === 'ADMIN' ? <span style={{ fontSize: '1.1em', letterSpacing: 1 }}>{t('لا محدود')}</span> : `${parseFloat(u.wallet || 0).toLocaleString()} ${t('د.ج')}`}</div>
                   {parseFloat(u.debt || 0) > 0 && (
                     <div style={{ fontSize: 12, color: 'var(--danger)', fontWeight: 600, marginTop: 4 }}>
                       {t('ديون')}: {parseFloat(u.debt).toLocaleString()} {t('د.ج')}
