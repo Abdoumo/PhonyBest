@@ -51,6 +51,7 @@ app.use('/api/v1/dashboard', require('./src/routes/dashboard'));
 app.use('/api/v1/settings', require('./src/routes/settings'));
 app.use('/api/v1/transactions', require('./src/routes/transactions'));
 app.use('/api/v1/usb-auth', require('./src/routes/usbAuth'));
+app.use('/api/v1/notifications', require('./src/routes/notifications'));
 
 // Health check
 app.get('/api/health', (req, res) => {

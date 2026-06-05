@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { FiDollarSign, FiActivity, FiAlertTriangle, FiCpu, FiUsers, FiTrendingUp } from 'react-icons/fi';
+import { FiDollarSign, FiActivity, FiAlertTriangle, FiCpu, FiUsers, FiTrendingUp, FiDownload } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import * as XLSX from 'xlsx';
 import API from '../api/axios';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -16,6 +17,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [ads, setAds] = useState([]);
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
+  const [reportLoading, setReportLoading] = useState(false);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -53,6 +55,61 @@ export default function DashboardPage() {
   const { user } = useSelector(s => s.auth);
   const isAdmin = user?.role === 'ADMIN';
 
+  const handleGenerateReport = async () => {
+    setReportLoading(true);
+    try {
+      const res = await API.get('/users', { params: { limit: 100000 } });
+      const users = res.data.users || [];
+
+      if (users.length === 0) {
+        alert(t('لا توجد بيانات لتصديرها'));
+        setReportLoading(false);
+        return;
+      }
+
+      const reportData = users.map(u => ({
+        [t('اسم المستخدم')]: u.username || '',
+        [t('الاسم الكامل')]: u.full_name || '',
+        [t('البريد الإلكتروني')]: u.email || '',
+        [t('رقم الهاتف')]: u.phone || '',
+        [t('الولاية')]: u.wilaya || '',
+        [t('الدور')]: u.role || '',
+        [t('الحالة')]: u.status || '',
+        [t('الرصيد')]: parseFloat(u.wallet || 0),
+        [t('الديون')]: parseFloat(u.debt || 0),
+        [t('حد الدين')]: parseFloat(u.debt_limit || 0),
+        [t('نسبة الربح %')]: parseFloat(u.profit_percentage || 0),
+        [t('إجمالي الأرباح')]: parseFloat(u.total_profit || 0),
+        [t('آخر تسجيل دخول')]: u.last_login ? new Date(u.last_login).toLocaleString('ar-DZ') : '-',
+        [t('تاريخ الإنشاء')]: u.created_at ? new Date(u.created_at).toLocaleString('ar-DZ') : '-',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(reportData);
+
+      // Auto-size columns
+      const colWidths = Object.keys(reportData[0]).map(key => {
+        const maxLen = Math.max(
+          key.length,
+          ...reportData.map(row => String(row[key] ?? '').length)
+        );
+        return { wch: Math.min(maxLen + 4, 40) };
+      });
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, t('تقرير المستخدمين'));
+
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      XLSX.writeFile(wb, `report_users_${dateStr}.xlsx`);
+    } catch (err) {
+      console.error('Report generation error:', err);
+      alert(t('خطأ في إنشاء التقرير'));
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
   const s = stats?.stats || {};
   const chart = stats?.chartData?.length ? stats.chartData : mockChart;
@@ -76,8 +133,9 @@ export default function DashboardPage() {
           <h1 className="page-title">{t('لوحة القيادة')}</h1>
           <p className="page-subtitle">{t('مرحباً بعودتك! إليك نظرة عامة.')}</p>
         </div>
-        <button className="btn btn-primary">
-          <FiActivity size={14} /> {t('إنشاء تقرير')}
+        <button className="btn btn-primary" onClick={handleGenerateReport} disabled={reportLoading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {reportLoading ? <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> : <FiDownload size={14} />}
+          {reportLoading ? t('جاري إنشاء التقرير...') : t('إنشاء تقرير')}
         </button>
       </div>
 
