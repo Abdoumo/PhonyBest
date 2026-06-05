@@ -833,6 +833,25 @@ tbody tr:last-child td {
   animation-delay: 0.2s;
 }
 
+/* Ad Banner */
+.ad-banner-container {
+  margin-bottom: 24px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+  height: 180px;
+  border: 1px solid var(--border);
+}
+
+.ad-banner-text {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24px;
+  z-index: 2;
+}
+
 /* Chart container */
 .chart-container {
   height: 300px;
@@ -859,6 +878,8 @@ tbody tr:last-child td {
   padding: 24px;
   width: 90%;
   max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
 }
 
@@ -922,7 +943,54 @@ tbody tr:last-child td {
   display: none;
 }
 
-/* Responsive */
+/* ═══════════════════════════════════════════════════════════════
+   Responsive Breakpoints
+   ═══════════════════════════════════════════════════════════════ */
+
+/* --- Wide Tablet / Small Desktop (≤ 1200px) --- */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* --- Tablet (≤ 1024px) --- */
+@media (max-width: 1024px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-3,
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .chart-container {
+    height: 260px;
+  }
+
+  table {
+    min-width: 550px;
+  }
+
+  .header-search {
+    min-width: 200px;
+  }
+}
+
+/* --- Mobile (≤ 768px) --- */
 @media (max-width: 768px) {
   .mobile-menu-btn {
     display: flex;
@@ -950,6 +1018,14 @@ tbody tr:last-child td {
 
   .main-content {
     margin-inline-start: 0;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .page {
+    padding: 14px;
+    overflow: hidden;
+    max-width: 100vw;
   }
 
   .login-right {
@@ -957,7 +1033,36 @@ tbody tr:last-child td {
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 14px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+    word-break: break-word;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .stat-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .stat-trend {
+    font-size: 10px;
   }
 
   .grid-2,
@@ -972,20 +1077,353 @@ tbody tr:last-child td {
     align-items: stretch;
   }
 
+  .page-header .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+  }
+
   .page {
-    padding: 16px;
+    padding: 14px;
   }
 
   .header {
-    padding: 0 12px;
+    padding: 0 10px;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  .header-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .user-info {
+    display: none;
+  }
+
+  .user-menu {
+    padding: 4px;
+    border: none;
+    background: transparent;
   }
 
   .card {
     padding: 12px;
   }
 
+  .card-title {
+    font-size: 13px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .chart-container {
+    height: 220px;
+  }
+
+  /* Force tables to scroll inside their containers */
+  table {
+    min-width: 450px;
+  }
+
+  .card > div[style*="overflow"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  thead th {
+    padding: 10px 12px;
+    font-size: 10px;
+  }
+
+  tbody td {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .modal {
+    width: 95%;
+    padding: 18px;
+    margin: 12px;
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  .btn-sm {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+
+  /* Notification panel responsive */
+  .notif-panel {
+    width: calc(100vw - 20px) !important;
+    max-width: 380px !important;
+    right: -60px !important;
+    left: auto !important;
+  }
+
+  .form-input,
+  .form-select {
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+
+  .ad-banner-container {
+    height: 140px;
+    margin-bottom: 16px;
+  }
+
+  .ad-banner-text {
+    padding: 14px;
+  }
+
+  .ad-banner-text h2 {
+    font-size: 16px !important;
+  }
+
+  .ad-banner-text p {
+    font-size: 12px !important;
+  }
+
+  /* ── Cards page: operator category tabs ── */
+  /* Make the horizontal tab row touch-scrollable */
+  .operator-tabs-scroll {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    overflow-x: auto !important;
+    padding-bottom: 8px !important;
+    gap: 8px !important;
+    max-width: 100%;
+  }
+
+  .operator-tabs-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .operator-tabs-scroll > div {
+    min-width: 90px !important;
+    height: 80px !important;
+  }
+
+  .operator-tabs-scroll > div > div:first-child {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 14px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .operator-tabs-scroll > div > div:last-child {
+    font-size: 12px !important;
+  }
+
+  /* ── Cards / Transactions / Clients page: filter grid & flex override ── */
+  .filters-responsive {
+    grid-template-columns: 1fr !important;
+    flex-direction: column !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  /* ── Flexy page: phone input ── */
+  .phone-input-large {
+    font-size: 1.6rem !important;
+    letter-spacing: 2px !important;
+    height: 56px !important;
+  }
+
+  /* ── Flexy page: operator selector buttons ── */
+  .operator-btns {
+    flex-wrap: wrap !important;
+  }
+
+  /* ── Flexy page: amount buttons ── */
+  .amount-btns {
+    gap: 6px !important;
+  }
+
+  .amount-btns .btn-sm {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  /* ── Clients page: table header bar ── */
+  .table-header {
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .table-header > div {
+    width: 100%;
+  }
+
+  .table-header .header-search {
+    display: flex !important;
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .table-header .form-select {
+    width: 100% !important;
+  }
+
+  /* ── Page header with multiple buttons ── */
+  .page-header > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .page-header .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Modals with inner 2-col grids (via inline styles) ── */
+  .modal .grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Pagination row ── */
+  .pagination-row {
+    flex-wrap: wrap;
+  }
+
+  .pagination-row .btn-sm {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* ── Settings page: permission grid ── */
+  .perms-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Commissions page: modal inner grids ── */
+  .modal-inner-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* --- Small Mobile (≤ 480px) --- */
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 12px;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .ad-banner-container {
+    height: 120px;
+    margin-bottom: 12px;
+  }
+
+  .ad-banner-text {
+    padding: 10px;
+  }
+
+  .ad-banner-text h2 {
+    font-size: 14px !important;
+  }
+
+  .ad-banner-text p {
+    font-size: 11px !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   .stat-value {
-    font-size: 20px;
+    font-size: 16px;
+  }
+
+  .chart-container {
+    height: 180px;
+  }
+
+  .page {
+    padding: 10px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .card {
+    padding: 10px;
+    border-radius: var(--radius-sm);
+  }
+
+  .card-header {
+    margin-bottom: 10px;
+  }
+
+  table {
+    min-width: 380px;
+  }
+
+  thead th {
+    padding: 8px 10px;
+    font-size: 9px;
+  }
+
+  tbody td {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .notif-panel {
+    width: calc(100vw - 16px) !important;
+    right: -80px !important;
+  }
+
+  .header {
+    padding: 0 8px;
+  }
+
+  .header-right {
+    gap: 6px;
+  }
+
+  .header-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
   }
 }
 

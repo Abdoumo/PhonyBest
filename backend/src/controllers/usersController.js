@@ -11,12 +11,17 @@ const getUsers = async (req, res) => {
 
     let sql = `
       SELECT u.id, u.username, u.email, u.full_name, u.phone, u.wilaya, u.role, u.wallet, u.debt, u.debt_limit, 
-             u.profit_percentage, u.status, u.parent_id, u.permissions, u.last_login, u.created_at,
+             u.profit_percentage, u.status, u.parent_id, u.permissions, u.last_login, u.created_at, u.logo_url,
              COALESCE((SELECT SUM(profit) FROM transactions WHERE client_id = u.id AND status = 'success'), 0) as total_profit
       FROM users u WHERE 1=1
     `;
     const params = [];
     let paramIdx = 1;
+
+    if (req.user.role !== 'ADMIN') {
+      sql += ` AND parent_id = $${paramIdx++}`;
+      params.push(req.user.id);
+    }
 
     if (role) {
       sql += ` AND role = $${paramIdx++}`;
@@ -64,7 +69,7 @@ const getUser = async (req, res) => {
   try {
     const result = await query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.wilaya, u.role, u.wallet, u.debt, u.debt_limit, 
-              u.profit_percentage, u.status, u.parent_id, u.permissions, u.last_login, u.created_at,
+              u.profit_percentage, u.status, u.parent_id, u.permissions, u.last_login, u.created_at, u.logo_url,
               COALESCE((SELECT SUM(profit) FROM transactions WHERE client_id = u.id AND status = 'success'), 0) as total_profit
        FROM users u WHERE u.id = $1`,
       [req.params.id]
@@ -83,7 +88,23 @@ const getUser = async (req, res) => {
  */
 const createUser = async (req, res) => {
   try {
-    const { username, email, password, full_name, phone, wilaya, role, wallet, debt_limit, profit_percentage, parent_id, permissions } = req.body;
+    let { username, email, password, full_name, phone, wilaya, role, wallet, debt_limit, profit_percentage, parent_id, permissions } = req.body;
+
+    if (req.user.role !== 'ADMIN') {
+      parent_id = req.user.id;
+      // Prevent privilege escalation: restrict what roles they can create
+      const allowedRoles = {
+        'SUPER_GRO': ['GRO', 'GROSIST', 'COMMERCANT', 'CLIENT'],
+        'GRO': ['COMMERCANT', 'CLIENT'],
+        'GROSIST': ['COMMERCANT', 'CLIENT'],
+        'COMMERCANT': ['CLIENT']
+      };
+      
+      const userAllowedRoles = allowedRoles[req.user.role] || [];
+      if (!userAllowedRoles.includes(role)) {
+        return res.status(403).json({ error: 'غير مصرح لك بإنشاء هذا الدور' });
+      }
+    }
 
     // Check duplicate
     const exists = await query('SELECT id FROM users WHERE username = $1 OR email = $2', [username, email]);
@@ -111,8 +132,32 @@ const createUser = async (req, res) => {
  */
 const updateUser = async (req, res) => {
   try {
-    const { full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions, password } = req.body;
+    let { full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions, password } = req.body;
     const userId = req.params.id;
+
+    if (req.user.role !== 'ADMIN') {
+      const checkOwnership = await query('SELECT id, role FROM users WHERE id = $1 AND parent_id = $2', [userId, req.user.id]);
+      if (checkOwnership.rows.length === 0) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      
+      const targetUserRole = checkOwnership.rows[0].role;
+      // If they try to change the role, check if they are allowed
+      if (role && role !== targetUserRole) {
+        const allowedRoles = {
+          'SUPER_GRO': ['GRO', 'GROSIST', 'COMMERCANT', 'CLIENT'],
+          'GRO': ['COMMERCANT', 'CLIENT'],
+          'GROSIST': ['COMMERCANT', 'CLIENT'],
+          'COMMERCANT': ['CLIENT']
+        };
+        const userAllowedRoles = allowedRoles[req.user.role] || [];
+        if (!userAllowedRoles.includes(role)) {
+          return res.status(403).json({ error: 'غير مصرح لك بتعيين هذا الدور' });
+        }
+      } else {
+        role = targetUserRole; // keep existing role if not changed
+      }
+    }
 
     let updatePasswordSql = '';
     let queryParams = [full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions, userId];
@@ -200,4 +245,26 @@ const manageDebt = async (req, res) => {
   }
 };
 
-module.exports = { getUsers, getUser, createUser, updateUser, deleteUser, manageDebt };
+/**
+ * POST /api/v1/users/me/logo
+ */
+const uploadLogo = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'لم يتم تحميل أي صورة' });
+    }
+
+    // Since server.js mounts app.use('/uploads', express.static('uploads'))
+    // the public URL path should be /uploads/logos/<filename>
+    const logoUrl = `/uploads/logos/${req.file.filename}`;
+
+    await query('UPDATE users SET logo_url = $1 WHERE id = $2', [logoUrl, req.user.id]);
+
+    res.json({ success: true, logo_url: logoUrl, message: 'تم تحديث الشعار بنجاح' });
+  } catch (err) {
+    console.error('Upload logo error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { getUsers, getUser, createUser, updateUser, deleteUser, manageDebt, uploadLogo };

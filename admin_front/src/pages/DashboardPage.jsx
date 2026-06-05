@@ -140,14 +140,14 @@ export default function DashboardPage() {
       </div>
 
       {ads.length > 0 && (
-        <div style={{ marginBottom: 24, borderRadius: 'var(--radius)', overflow: 'hidden', position: 'relative', height: 180, border: '1px solid var(--border)' }}>
+        <div className="ad-banner-container">
           {ads.map((ad, idx) => (
             <div key={ad.id} style={{
               position: 'absolute', inset: 0, opacity: currentAdIndex === idx ? 1 : 0, transition: 'opacity 0.8s ease-in-out',
               backgroundImage: `url(${ad.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: currentAdIndex === idx ? 1 : 0
             }}>
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)' }} />
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, zIndex: 2 }}>
+              <div className="ad-banner-text">
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{ad.title}</h2>
                 <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>{ad.content}</p>
               </div>

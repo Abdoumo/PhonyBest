@@ -46,7 +46,7 @@ export default function IdoomPage() {
         <div className="card">
           <div className="card-header"><span className="card-title">{t('تنفيذ تعبئة أيدوم')}</span></div>
 
-          <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+          <div className="operator-btns" style={{ display:'flex', gap:8, marginBottom:16 }}>
             {idoomTypes.map(t => (
               <button key={t.id}
                 className={`btn ${type === t.id ? 'btn-primary' : 'btn-secondary'}`}
@@ -58,7 +58,7 @@ export default function IdoomPage() {
 
           <div className="form-group">
             <label className="form-label"><FiPhone style={{marginLeft:4}} />{t('رقم الهاتف (أو رقم الحساب)')}</label>
-            <input className="form-input" style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }} 
+            <input className="form-input phone-input-large" style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }} 
               placeholder={type === 'lte' ? '023000000' : '021000000'} value={phone}
               maxLength={10}
               onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} />
@@ -66,7 +66,7 @@ export default function IdoomPage() {
 
           <div className="form-group">
             <label className="form-label"><FiDollarSign style={{marginLeft:4}} />{t('المبلغ')}</label>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:8 }}>
+            <div className="amount-btns" style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:8 }}>
               {predefinedAmounts.map(a => (
                 <button key={a}
                   className={`btn btn-sm ${amount === a ? 'btn-primary' : 'btn-secondary'}`}

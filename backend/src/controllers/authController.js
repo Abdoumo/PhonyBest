@@ -81,6 +81,7 @@ const login = async (req, res) => {
         role: user.role,
         wallet: parseFloat(user.wallet),
         debt: parseFloat(user.debt),
+        logo_url: user.logo_url,
         usb_auth_required: usbAuthRequired,
       },
       ...tokens,

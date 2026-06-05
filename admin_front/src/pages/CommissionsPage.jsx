@@ -177,7 +177,7 @@ export default function CommissionsPage() {
               <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="modal-inner-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
                 <label className="form-label">{t('الخدمة')}</label>
                 <select className="form-select" value={form.service} onChange={e => setForm({...form, service: e.target.value, operator: operators[e.target.value][0]})}>
@@ -205,7 +205,7 @@ export default function CommissionsPage() {
               <small style={{ color: 'var(--text-muted)' }}>{t('مثال:')} 10000 {t('د.ج')}</small>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="modal-inner-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
                 <label className="form-label">{t('سعر التكلفة (سعر شرائك)')}</label>
                 <input className="form-input" type="number" value={form.admin_cost} onChange={e => setForm({...form, admin_cost: Number(e.target.value)})} />

@@ -33,6 +33,11 @@ const authSlice = createSlice({
     },
     clearError(state) { state.error = null; },
     setInitialized(state) { state.initialized = true; },
+    updateUserLogo(state, action) {
+      if (state.user) {
+        state.user.logo_url = action.payload;
+      }
+    },
   },
   extraReducers: (b) => {
     b.addCase(loginUser.pending, (s) => { s.loading = true; s.error = null; });
@@ -44,5 +49,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, setInitialized } = authSlice.actions;
+export const { logout, clearError, setInitialized, updateUserLogo } = authSlice.actions;
 export default authSlice.reducer;

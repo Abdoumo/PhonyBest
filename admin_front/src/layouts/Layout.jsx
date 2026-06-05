@@ -205,7 +205,11 @@ export default function Layout() {
       
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="logo">⚡</div>
+          {user?.logo_url ? (
+            <img src={`${API.defaults.baseURL.replace('/api/v1', '')}${user.logo_url}`} alt="Logo" className="custom-logo" style={{ width: 40, height: 40, borderRadius: '8px', objectFit: 'cover', background: 'white' }} />
+          ) : (
+            <div className="logo">⚡</div>
+          )}
           <h1>{user?.role === 'ADMIN' ? 'FLEXY GSM' : (user?.username || 'FLEXY GSM').toUpperCase()}</h1>
         </div>
         <nav className="sidebar-nav">
@@ -226,7 +230,7 @@ export default function Layout() {
 
             const canSee = (id) => {
               if (user?.role === 'ADMIN') return true;
-              if (id === 'dashboard') return true;
+              if (id === 'dashboard' || id === 'settings') return true;
               
               // If user has personal permissions, use those (override)
               if (perms.length > 0) return perms.includes(id) || (id === 'security-key' && perms.includes('usb-auth'));

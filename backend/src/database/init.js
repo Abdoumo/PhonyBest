@@ -256,6 +256,14 @@ const createTables = async () => {
       console.log('✅ Default admin created (admin / admin123)');
     }
 
+    // Database migrations for existing setups
+    try {
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)`);
+      console.log('✅ Migrations applied successfully');
+    } catch (e) {
+      console.log('⚠️ Migration note:', e.message);
+    }
+
     await client.query('COMMIT');
     console.log('✅ All tables created successfully');
   } catch (err) {

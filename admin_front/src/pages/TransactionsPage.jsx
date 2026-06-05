@@ -96,7 +96,7 @@ export default function TransactionsPage() {
           <span className="card-title">سجل العمليات ({pagination.total})</span>
         </div>
 
-        <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+        <div className="filters-responsive" style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
           {isAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('المستخدمين')}</label>

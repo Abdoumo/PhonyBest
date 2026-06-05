@@ -87,7 +87,12 @@ export default function CardsPage() {
           pin = parts[0] || ''; serial = parts[1] || ''; 
         }
         return { serial: serial.trim(), pin: pin.trim(), operator: selectedCat, value: uploadValue, category: selectedCat };
-      }).filter(c => c.serial || c.pin); // Filter invalid lines
+      }).filter(c => {
+        // Filter out empty lines and CSV header rows
+        if (!c.serial && !c.pin) return false;
+        const isHeader = c.serial.toLowerCase() === 'serial' || c.pin.toLowerCase() === 'pin' || c.pin.toLowerCase() === 'code';
+        return !isHeader;
+      });
       
       try {
         const { data } = await API.post('/cards/upload', { cards: parsedCards });
@@ -154,7 +159,7 @@ export default function CardsPage() {
         </div>
         {isAdmin ? (
           <>
-            <input type="file" accept=".txt" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
+            <input type="file" accept=".txt,.csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
             <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
               <FiUpload size={14} style={{marginLeft:4}}/> {t('رفع بطاقات')} ({t(categories.find(c => c.id === selectedCat)?.name)})
             </button>
@@ -166,7 +171,7 @@ export default function CardsPage() {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16, marginBottom: 16 }}>
+      <div className="operator-tabs-scroll" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16, marginBottom: 16 }}>
         {categories.map(c => (
           <div key={c.id} 
             onClick={() => setSelectedCat(c.id)}
@@ -191,7 +196,7 @@ export default function CardsPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span className="card-title">{t('مخزون بطاقات')} {t(categories.find(c => c.id === selectedCat)?.name)} {getCatSummary()}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+          <div className="filters-responsive" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
             {isAdmin && (
               <select className="form-select" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
                 <option value="all">{t('المالك')}: {t('الجميع')}</option>

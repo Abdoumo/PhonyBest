@@ -49,7 +49,7 @@ export default function CardOrdersPage() {
       <div className="card">
         <div className="card-header">
           <span className="card-title">{t('قائمة الطلبات')}</span>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div className="filters-responsive" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <select className="form-select" value={filterBy} onChange={e => setFilterBy(e.target.value)} style={{ padding: '6px 12px', fontSize: 13, minWidth: 150 }}>
               <option value="all">{t('الجميع (كل الطلبات)')}</option>
               <option value="me">{t('طلباتي فقط')}</option>

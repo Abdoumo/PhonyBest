@@ -14,7 +14,7 @@ const authenticate = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const result = await query('SELECT id, username, email, full_name, role, wallet, debt, status FROM users WHERE id = $1', [decoded.userId]);
+    const result = await query('SELECT id, username, email, full_name, role, wallet, debt, status, logo_url FROM users WHERE id = $1', [decoded.userId]);
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'User not found' });
     }

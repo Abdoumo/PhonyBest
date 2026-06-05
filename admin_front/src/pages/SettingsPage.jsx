@@ -1,13 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { FiSettings, FiSave, FiLock, FiDatabase } from 'react-icons/fi';
+import { FiSettings, FiSave, FiLock, FiDatabase, FiImage, FiUpload } from 'react-icons/fi';
+import { useSelector, useDispatch } from 'react-redux';
+import { updateUserLogo } from '../redux/authSlice';
 import API from '../api/axios';
 
 export default function SettingsPage() {
   const { t } = useLanguage();
+  const { user } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
+  
+  const fileInputRef = useRef(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const [settings, setSettings] = useState({
     siteName: 'منصة فليكسي GSM',
@@ -107,27 +116,80 @@ export default function SettingsPage() {
     setSaving(false);
   };
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    setUploadingLogo(true);
+    try {
+      const res = await API.post('/users/me/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      dispatch(updateUserLogo(res.data.logo_url));
+      setMsg({ type: 'success', text: 'تم تحديث الشعار بنجاح' });
+    } catch (err) {
+      setMsg({ type: 'error', text: err.response?.data?.error || 'حدث خطأ أثناء رفع الشعار' });
+    }
+    setUploadingLogo(false);
+  };
+
   return (
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">{t('إعدادات النظام')}</h1>
-          <p className="page-subtitle">{t('إدارة الإعدادات العامة للمنصة وقواعد البيانات')}</p>
+          <h1 className="page-title">{isAdmin ? t('إعدادات النظام') : t('إعدادات الحساب')}</h1>
+          <p className="page-subtitle">{isAdmin ? t('إدارة الإعدادات العامة للمنصة وقواعد البيانات') : t('إدارة إعدادات حسابك ومظهر المنصة')}</p>
         </div>
       </div>
 
+      {msg && (
+        <div className={`login-error`} style={msg.type === 'success' ? { background:'var(--success-bg)', borderColor:'var(--success)', color:'var(--success)', marginBottom: 20 } : { marginBottom: 20 }}>
+          {msg.text}
+        </div>
+      )}
+
       <div className="grid-2">
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">{t('الإعدادات العامة')}</span>
-            <FiSettings color="var(--text-muted)" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Brand Settings - Visible to everyone */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">{t('تخصيص المظهر')}</span>
+              <FiImage color="var(--text-muted)" />
+            </div>
+            
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">{t('شعار الواجهة')}</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'var(--bg-input)', padding: 16, borderRadius: 12 }}>
+                <div style={{ width: 64, height: 64, borderRadius: 8, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  {user?.logo_url ? (
+                    <img src={`${API.defaults.baseURL.replace('/api/v1', '')}${user.logo_url}`} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ fontSize: 24 }}>⚡</div>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>{t('ارفع شعارك الخاص ليظهر في القائمة الجانبية (PNG أو JPG)')}</p>
+                  <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/png, image/jpeg" style={{ display: 'none' }} />
+                  <button className="btn btn-secondary" onClick={() => fileInputRef.current.click()} disabled={uploadingLogo}>
+                    {uploadingLogo ? <span className="spinner" style={{width:14,height:14}}/> : <FiUpload style={{ marginLeft: 6 }} />}
+                    {t('رفع صورة جديدة')}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {msg && (
-            <div className={`login-error`} style={msg.type === 'success' ? { background:'var(--success-bg)', borderColor:'var(--success)', color:'var(--success)' } : {}}>
-              {msg.text}
-            </div>
-          )}
+          {isAdmin && (
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">{t('الإعدادات العامة')}</span>
+                <FiSettings color="var(--text-muted)" />
+              </div>
+
+
 
           <div className="form-group">
             <label className="form-label">{t('اسم المنصة')}</label>
@@ -163,11 +225,14 @@ export default function SettingsPage() {
             </label>
           </div>
 
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSave size={14} style={{marginLeft:4}}/>{t('حفظ الإعدادات')}</>}
-          </button>
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSave size={14} style={{marginLeft:4}}/>{t('حفظ الإعدادات')}</>}
+            </button>
+          </div>
+          )}
         </div>
 
+        {isAdmin && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div className="card">
             <div className="card-header">
@@ -199,7 +264,7 @@ export default function SettingsPage() {
 
             {selectedRole && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16, background: 'var(--bg-input)', padding: 12, borderRadius: 8 }}>
+                <div className="perms-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16, background: 'var(--bg-input)', padding: 12, borderRadius: 8 }}>
                   {availableRoutes.map(r => (
                     <label key={r.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: 13 }}>
                       <input type="checkbox" checked={rolePerms[r.id] || false} 
@@ -225,6 +290,7 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
