@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { FiDollarSign, FiActivity, FiAlertTriangle, FiCpu, FiUsers, FiTrendingUp, FiDownload } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import API from '../api/axios';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -84,24 +84,34 @@ export default function DashboardPage() {
         [t('تاريخ الإنشاء')]: u.created_at ? new Date(u.created_at).toLocaleString('ar-DZ') : '-',
       }));
 
-      const ws = XLSX.utils.json_to_sheet(reportData);
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet(t('تقرير المستخدمين'));
 
-      // Auto-size columns
-      const colWidths = Object.keys(reportData[0]).map(key => {
+      // Extract columns and set width
+      const headers = Object.keys(reportData[0]);
+      worksheet.columns = headers.map(key => {
         const maxLen = Math.max(
           key.length,
           ...reportData.map(row => String(row[key] ?? '').length)
         );
-        return { wch: Math.min(maxLen + 4, 40) };
+        return { header: key, key: key, width: Math.min(maxLen + 4, 40) };
       });
-      ws['!cols'] = colWidths;
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, t('تقرير المستخدمين'));
+      // Add data rows
+      worksheet.addRows(reportData);
 
       const now = new Date();
       const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-      XLSX.writeFile(wb, `report_users_${dateStr}.xlsx`);
+      
+      // Save file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `report_users_${dateStr}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Report generation error:', err);
       alert(t('خطأ في إنشاء التقرير'));
