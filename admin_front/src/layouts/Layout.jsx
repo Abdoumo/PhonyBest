@@ -9,7 +9,7 @@ import {
   FiHome, FiZap, FiWifi, FiCreditCard, FiGift, FiUsers,
   FiPercent, FiArrowUpRight, FiPackage, FiBarChart2, FiImage,
   FiSettings, FiSearch, FiBell, FiLogOut, FiMoon, FiSun, FiFileText, FiList, FiMenu, FiX, FiGlobe, FiShield,
-  FiCheck, FiCheckCircle, FiTrash2, FiAlertCircle, FiInfo, FiAlertTriangle
+  FiCheck, FiCheckCircle, FiTrash2, FiAlertCircle, FiInfo, FiAlertTriangle, FiRadio
 } from 'react-icons/fi';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -32,6 +32,7 @@ const navItems = [
   ]},
   { section: 'النظام', items: [
     { to: '/analytics', icon: FiBarChart2, label: 'التحليلات' },
+    { to: '/modemgrid', icon: FiRadio, label: 'ModemGrid' },
     { to: '/ads', icon: FiImage, label: 'الإعلانات' },
     { to: '/security-key', icon: FiShield, label: 'مفاتيح الأمان' },
     { to: '/settings', icon: FiSettings, label: 'الإعدادات' },

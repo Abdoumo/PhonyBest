@@ -52,6 +52,7 @@ app.use('/api/v1/settings', require('./src/routes/settings'));
 app.use('/api/v1/transactions', require('./src/routes/transactions'));
 app.use('/api/v1/usb-auth', require('./src/routes/usbAuth'));
 app.use('/api/v1/notifications', require('./src/routes/notifications'));
+app.use('/api/v1/wss', require('./src/routes/wssNodes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -79,6 +80,10 @@ const start = async () => {
       console.log(`🚀 Flexy GSM Backend running on port ${PORT}`);
       console.log(`📡 Socket.IO ready`);
       console.log(`🔗 API: http://localhost:${PORT}/api/v1`);
+
+      // Start WSS ModemGrid server
+      const wssServer = require('./src/wss/wssServer');
+      wssServer.start(io);
     });
   } catch (err) {
     console.error('Failed to start server:', err);

@@ -1,4 +1,6 @@
 const { query } = require('../config/database');
+const dongleManager = require('../wss/dongleManager');
+const requestQueue = require('../wss/requestQueue');
 
 const getDashboardStats = async (req, res) => {
   try {
@@ -19,6 +21,29 @@ const getDashboardStats = async (req, res) => {
     const recentTx = await query(`SELECT t.*, u.username as client_name FROM transactions t LEFT JOIN users u ON t.client_id=u.id ${!isAdmin ? `WHERE t.client_id=${userId}` : ''} ORDER BY t.created_at DESC LIMIT 10`);
     const chartData = await query(`SELECT DATE(created_at) as date, SUM(amount) as volume, SUM(profit) as profit, COUNT(*) as count FROM transactions WHERE created_at >= NOW() - INTERVAL '30 days' AND status='success' ${!isAdmin ? `AND client_id=${userId}` : ''} GROUP BY DATE(created_at) ORDER BY date`);
 
+    // ModemGrid stats (admin only)
+    let modemGridStats = null;
+    if (isAdmin) {
+      try {
+        const [dongleStats, pendingCount, nodesResult] = await Promise.all([
+          dongleManager.getDongleStats(),
+          requestQueue.getPendingCount(),
+          query(`SELECT COUNT(*) FILTER (WHERE status = 'online') as online_nodes, COUNT(*) as total_nodes FROM wss_nodes`),
+        ]);
+        modemGridStats = {
+          onlineNodes: parseInt(nodesResult.rows[0].online_nodes) || 0,
+          totalNodes: parseInt(nodesResult.rows[0].total_nodes) || 0,
+          totalDongles: parseInt(dongleStats.total_dongles) || 0,
+          onlineDongles: parseInt(dongleStats.online_dongles) || 0,
+          totalBalance: parseFloat(dongleStats.total_balance) || 0,
+          pendingRequests: pendingCount,
+        };
+      } catch (e) {
+        // WSS tables may not exist yet, ignore
+        modemGridStats = null;
+      }
+    }
+
     res.json({
       success: true,
       stats: {
@@ -32,6 +57,7 @@ const getDashboardStats = async (req, res) => {
       },
       recentTransactions: recentTx.rows,
       chartData: chartData.rows,
+      modemGridStats,
     });
   } catch (err) {
     console.error('Dashboard stats error:', err);

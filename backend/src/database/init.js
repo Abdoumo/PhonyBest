@@ -231,6 +231,107 @@ const createTables = async () => {
       );
     `);
 
+    // WSS ModemGrid Nodes
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wss_nodes (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        token_hash VARCHAR(255) NOT NULL,
+        status VARCHAR(20) DEFAULT 'offline' CHECK (status IN ('online','offline','error')),
+        ip_address VARCHAR(45),
+        last_seen TIMESTAMP,
+        dongle_count INTEGER DEFAULT 0,
+        online_count INTEGER DEFAULT 0,
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // WSS Dongles (live state synced from nodes)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wss_dongles (
+        id SERIAL PRIMARY KEY,
+        node_id INTEGER REFERENCES wss_nodes(id) ON DELETE CASCADE,
+        dongle_id VARCHAR(100) NOT NULL,
+        name VARCHAR(200),
+        operator VARCHAR(50),
+        online BOOLEAN DEFAULT false,
+        balance DECIMAL(12,2),
+        pool_ids INTEGER[],
+        last_updated TIMESTAMP DEFAULT NOW(),
+        UNIQUE(node_id, dongle_id)
+      );
+    `);
+
+    // WSS Pools (live state synced from nodes)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wss_pools (
+        id SERIAL PRIMARY KEY,
+        node_id INTEGER REFERENCES wss_nodes(id) ON DELETE CASCADE,
+        pool_id INTEGER NOT NULL,
+        name VARCHAR(200),
+        dongle_count INTEGER DEFAULT 0,
+        online_count INTEGER DEFAULT 0,
+        total_balance DECIMAL(12,2) DEFAULT 0,
+        highest_balance DECIMAL(12,2) DEFAULT 0,
+        api_names TEXT[] DEFAULT '{}',
+        last_updated TIMESTAMP DEFAULT NOW(),
+        UNIQUE(node_id, pool_id)
+      );
+    `);
+
+    // WSS Request Queue
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wss_request_queue (
+        id SERIAL PRIMARY KEY,
+        transaction_id INTEGER REFERENCES transactions(id),
+        node_id INTEGER REFERENCES wss_nodes(id),
+        api_name VARCHAR(100) NOT NULL,
+        variables JSONB DEFAULT '{}',
+        status VARCHAR(20) DEFAULT 'queued' CHECK (status IN ('queued','sent','completed','failed','timeout')),
+        request_id VARCHAR(255),
+        result TEXT,
+        error TEXT,
+        modem_id VARCHAR(100),
+        sent_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // WSS Request Log (completed history)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wss_request_log (
+        id SERIAL PRIMARY KEY,
+        transaction_id INTEGER,
+        node_id INTEGER,
+        node_name VARCHAR(100),
+        api_name VARCHAR(100),
+        variables JSONB DEFAULT '{}',
+        status VARCHAR(20),
+        request_id VARCHAR(255),
+        result TEXT,
+        error TEXT,
+        modem_id VARCHAR(100),
+        duration_ms INTEGER,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // WSS Events (audit log)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wss_events (
+        id SERIAL PRIMARY KEY,
+        node_id INTEGER,
+        node_name VARCHAR(100),
+        event_type VARCHAR(50) NOT NULL,
+        message TEXT,
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
     // Create indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_client ON transactions(client_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);`);
@@ -244,6 +345,14 @@ const createTables = async () => {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_usb_sessions_user ON usb_sessions(user_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_usb_sessions_status ON usb_sessions(status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_usb_auth_keys_user ON usb_auth_keys(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_nodes_status ON wss_nodes(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_dongles_node ON wss_dongles(node_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_dongles_operator ON wss_dongles(operator);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_pools_node ON wss_pools(node_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_queue_status ON wss_request_queue(status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_queue_request_id ON wss_request_queue(request_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_events_node ON wss_events(node_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_events_date ON wss_events(created_at);`);
 
     // Create default admin user
     const adminExists = await client.query(`SELECT id FROM users WHERE username = 'admin'`);
