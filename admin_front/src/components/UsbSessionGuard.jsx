@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiShield, FiKey } from 'react-icons/fi';
 
 const POLL_INTERVAL = 3000; // 3 seconds
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/v1`;
 
 /**
  * UsbSessionGuard

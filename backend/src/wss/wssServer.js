@@ -73,6 +73,11 @@ function start(io) {
             ws._node = node;
           }
 
+          console.log(`\n======================================================`);
+          console.log(`📦 FULL REGISTER MESSAGE FROM MODEMGRID:`);
+          console.log(JSON.stringify(data, null, 2));
+          console.log(`======================================================\n`);
+          
           await nodeManager.handleRegister(ws, ws._node, data);
           return;
         }
@@ -85,7 +90,17 @@ function start(io) {
 
         // Handle periodic status update
         if (data.type === 'status') {
+          console.log(`\n======================================================`);
+          console.log(`📊 FULL STATUS MESSAGE FROM MODEMGRID:`);
+          console.log(JSON.stringify(data, null, 2));
+          console.log(`======================================================\n`);
+          
           await nodeManager.handleStatusUpdate(ws, data);
+          return;
+        }
+
+        // Ignore heartbeat and ack messages from ModemGrid
+        if (data.type && ['heartbeat', 'ack', 'welcome'].includes(data.type.toLowerCase())) {
           return;
         }
 
@@ -96,7 +111,7 @@ function start(io) {
         }
 
         // Unknown message type — log it
-        console.log(`📨 WSS: Unknown message type from "${ws._nodeName}":`, data.type || 'no type');
+        console.log(`📨 WSS: Unknown message from "${ws._nodeName}":\n`, JSON.stringify(data, null, 2));
 
       } catch (err) {
         console.error(`❌ WSS message handler error:`, err.message);

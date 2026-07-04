@@ -7,7 +7,7 @@ const requestQueue = require('../wss/requestQueue');
  */
 const sendFlexy = async (req, res) => {
   try {
-    const { number, operator, amount, offer } = req.body;
+    const { number, operator, amount, offer, variables: customVariables } = req.body;
     const userId = req.user.id;
 
     // Validate operator
@@ -38,11 +38,13 @@ const sendFlexy = async (req, res) => {
     }
 
     // --- Route through ModemGrid WSS ---
-    const target = await routingEngine.selectBestTarget(operator, amount);
+    // We can use the 'offer' field to specify an exact api_name (like 'test_var' or 'topup_mobilis')
+    const target = await routingEngine.selectBestTarget(operator, amount, offer);
 
     if (target) {
       // Build variables for the ModemGrid API
-      const variables = {
+      // Use custom variables if provided, otherwise default to phone_number and price
+      const variables = customVariables || {
         phone_number: number,
         price: String(amount),
       };
@@ -276,4 +278,17 @@ const bulkFlexy = async (req, res) => {
   }
 };
 
-module.exports = { sendFlexy, getFlexyHistory, bulkFlexy };
+/**
+ * GET /api/v1/flexy/modem-status
+ */
+const getModemStatus = async (req, res) => {
+  try {
+    const summary = await routingEngine.getRoutingSummary();
+    res.json({ success: true, summary });
+  } catch (err) {
+    console.error('Get modem status error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { sendFlexy, getFlexyHistory, bulkFlexy, getModemStatus };

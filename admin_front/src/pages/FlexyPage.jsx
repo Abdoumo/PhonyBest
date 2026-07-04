@@ -39,6 +39,7 @@ export default function FlexyPage() {
   const [result, setResult] = useState(null);
   const [clients, setClients] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [modemStatus, setModemStatus] = useState(null);
 
   const filteredClients = clients.filter(c => {
     if (!c.phone) return false;
@@ -57,6 +58,16 @@ export default function FlexyPage() {
     API.get('/users', { params: { limit: 1000 } })
       .then(r => setClients(r.data.users || []))
       .catch(e => console.error(e));
+
+    const fetchModemStatus = () => {
+      API.get('/flexy/modem-status')
+        .then(r => setModemStatus(r.data.summary))
+        .catch(e => console.error(e));
+    };
+
+    fetchModemStatus();
+    const interval = setInterval(fetchModemStatus, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleSend = async () => {
@@ -185,15 +196,33 @@ export default function FlexyPage() {
         <div className="card">
           <div className="card-header"><span className="card-title">{t('معلومات سريعة')}</span></div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {operators.map(op => (
-              <div key={op.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'var(--bg-input)', borderRadius: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: op.color }} />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{t(op.name)}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>البادئة: {op.prefix}x</div>
+            {operators.map(op => {
+              const opStats = modemStatus?.operators?.find(o => o.operator.toLowerCase() === op.id);
+              const isOnline = modemStatus?.available && opStats && parseInt(opStats.online_count) > 0;
+              const balance = opStats ? parseFloat(opStats.total_balance).toFixed(2) : '0.00';
+
+              return (
+                <div key={op.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: 'var(--bg-input)', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: op.color }} />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{t(op.name)}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>البادئة: {op.prefix}x</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'left', fontSize: 13 }}>
+                    {isOnline ? (
+                      <div>
+                        <span style={{ color: 'var(--success)' }}>● متصل</span>
+                        <div style={{ fontWeight: 600, fontFamily: 'monospace', marginTop: 2 }}>{balance} DA</div>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--danger)' }}>○ غير متصل</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

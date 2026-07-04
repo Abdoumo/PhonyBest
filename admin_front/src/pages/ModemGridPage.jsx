@@ -95,7 +95,7 @@ export default function ModemGridPage() {
 
   // Real-time Socket.IO updates
   useEffect(() => {
-    const socket = socketIO('http://localhost:8000', { transports: ['websocket', 'polling'] });
+    const socket = socketIO(import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000', { transports: ['websocket', 'polling'] });
     socket.on('connect', () => socket.emit('join_admin'));
 
     socket.on('wss_node_connected', () => fetchData());

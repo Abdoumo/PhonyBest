@@ -24,8 +24,11 @@ async function enqueue(nodeId, apiName, variables, transactionId) {
   );
   const queueId = queueResult.rows[0].id;
 
-  // Build the message to send to the node (per WSS protocol — no request_id, node generates it)
+  // Build the message to send to the node
+  // We send request_id and id so the node can deduplicate requests
   const message = {
+    request_id: String(queueId),
+    id: String(queueId),
     api_name: apiName,
     variables: variables,
   };
@@ -93,16 +96,22 @@ async function handleResult(nodeId, data) {
   const { request_id, status, result, error, modem_id } = data;
 
   // Find the pending request for this node
-  // Since ModemGrid generates request_id and we stored by queueId,
-  // we need to match by nodeId — find the oldest pending request for this node
   let matchedEntry = null;
   let matchedKey = null;
 
-  for (const [key, entry] of pendingRequests.entries()) {
-    if (entry.nodeId === nodeId && key.startsWith('_queue_')) {
-      matchedEntry = entry;
-      matchedKey = key;
-      break; // FIFO — first entry for this node
+  // First try exact match if the node echoed the request_id we sent
+  const exactKey = `_queue_${request_id}`;
+  if (pendingRequests.has(exactKey)) {
+    matchedEntry = pendingRequests.get(exactKey);
+    matchedKey = exactKey;
+  } else {
+    // Fallback to FIFO if the node generated a random UUID
+    for (const [key, entry] of pendingRequests.entries()) {
+      if (entry.nodeId === nodeId && key.startsWith('_queue_')) {
+        matchedEntry = entry;
+        matchedKey = key;
+        break; // FIFO — first entry for this node
+      }
     }
   }
 
