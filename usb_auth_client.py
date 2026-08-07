@@ -48,7 +48,7 @@ except ImportError:
 # Configuration
 # ═══════════════════════════════════════════════════════════════════
 
-DEFAULT_API_URL = "http://69.57.163.97:8000/api/v1"
+DEFAULT_API_URL = "https://bbbackend.duckdns.org/api/v1"
 HEARTBEAT_INTERVAL = 5  # seconds
 SCAN_INTERVAL = 2       # seconds
 AUTH_FILENAME = "security.auth"
