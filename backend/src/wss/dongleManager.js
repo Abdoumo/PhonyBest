@@ -11,8 +11,19 @@ async function syncDongles(nodeId, dongles) {
   if (!Array.isArray(dongles)) return;
 
   try {
-    // Mark all existing dongles for this node as offline first
-    await query('UPDATE wss_dongles SET online = false WHERE node_id = $1', [nodeId]);
+    const incomingDongleIds = dongles.map(d => d.dongle_id);
+
+    // Delete any old "ghost" dongles for this node that are not in the current sync list
+    if (incomingDongleIds.length > 0) {
+      await query('DELETE FROM wss_dongles WHERE node_id = $1 AND dongle_id != ALL($2::text[])', [nodeId, incomingDongleIds]);
+    } else {
+      await query('DELETE FROM wss_dongles WHERE node_id = $1', [nodeId]);
+    }
+
+    // Mark all incoming dongles as offline first, they will be upserted to online if they are online
+    if (incomingDongleIds.length > 0) {
+      await query('UPDATE wss_dongles SET online = false WHERE node_id = $1 AND dongle_id = ANY($2::text[])', [nodeId, incomingDongleIds]);
+    }
 
     for (const dongle of dongles) {
       await query(`
