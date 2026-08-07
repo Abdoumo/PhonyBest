@@ -78,6 +78,12 @@ app.use('/api/v1/usb-auth', require('./src/routes/usbAuth'));
 app.use('/api/v1/notifications', require('./src/routes/notifications'));
 app.use('/api/v1/wss', require('./src/routes/wssNodes'));
 
+app.get('/api/v1/debug-usb', async (req, res) => {
+  const { query } = require('./src/config/database');
+  const r = await query("SELECT * FROM usb_sessions ORDER BY created_at DESC LIMIT 10");
+  res.json(r.rows);
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
