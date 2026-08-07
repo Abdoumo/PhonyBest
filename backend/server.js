@@ -80,8 +80,19 @@ app.use('/api/v1/wss', require('./src/routes/wssNodes'));
 
 app.get('/api/v1/debug-usb', async (req, res) => {
   const { query } = require('./src/config/database');
-  const r = await query("SELECT * FROM usb_sessions ORDER BY created_at DESC LIMIT 10");
-  res.json(r.rows);
+  const allRows = await query("SELECT * FROM usb_sessions ORDER BY created_at DESC LIMIT 10");
+  const authQuery = await query(`
+        SELECT session_id, user_id, status, last_heartbeat, NOW() as current_time_db
+        FROM usb_sessions
+        WHERE user_id = 1
+          AND status = 'active'
+          AND last_heartbeat >= NOW() - INTERVAL '15 seconds'
+        ORDER BY last_heartbeat DESC LIMIT 1
+      `);
+  res.json({
+    allRows: allRows.rows,
+    authQueryResult: authQuery.rows
+  });
 });
 
 // Health check
