@@ -77,11 +77,11 @@ export default function ModemGridPage() {
       ]);
       setStats(statsRes.data.stats);
       setNodes(nodesRes.data.nodes || []);
-      
+
       const fetchedDongles = donglesRes.data.dongles || [];
       console.log('Full Dongles Data from /wss/dongles:', fetchedDongles);
       setDongles(fetchedDongles);
-      console.log('dongles', fetchedDongles);
+
       setPools(poolsRes.data.pools || []);
       setEvents(eventsRes.data.events || []);
       setQueue(queueRes.data.queue || []);
@@ -560,7 +560,7 @@ export default function ModemGridPage() {
         <div className="mg-modal-overlay" onClick={() => setSelectedModemJson(null)}>
           <div className="mg-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, width: '90%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center' }}><FiCode size={18} style={{marginInlineEnd: 8}}/>{t('تفاصيل المودم (JSON)')}</h3>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center' }}><FiCode size={18} style={{ marginInlineEnd: 8 }} />{t('تفاصيل المودم (JSON)')}</h3>
               <button onClick={() => setSelectedModemJson(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <FiX size={20} />
               </button>
