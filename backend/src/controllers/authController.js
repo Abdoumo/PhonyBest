@@ -72,18 +72,15 @@ const login = async (req, res) => {
     const usbAuthRequired = usbKeyResult.rows.length > 0;
 
     if (usbAuthRequired) {
-      // Find an active session matching the IP address, OR use the provided session_id
+      // Check if this user has any active USB session
       const activeSessionResult = await query(`
-        SELECT s.session_id
-        FROM usb_sessions s
-        JOIN session_logs l ON l.user_id = s.user_id AND l.action = 'usb_login'
-        WHERE s.user_id = $1
-          AND s.status = 'active'
-          AND s.last_heartbeat >= NOW() - INTERVAL '15 seconds'
-          AND l.ip_address = $2
-          AND l.created_at >= NOW() - INTERVAL '1 hour'
-        ORDER BY l.created_at DESC LIMIT 1
-      `, [user.id, req.ip]);
+        SELECT session_id
+        FROM usb_sessions
+        WHERE user_id = $1
+          AND status = 'active'
+          AND last_heartbeat >= NOW() - INTERVAL '15 seconds'
+        ORDER BY last_heartbeat DESC LIMIT 1
+      `, [user.id]);
 
       let sessionIdToUse = usb_session_id;
 
@@ -92,16 +89,6 @@ const login = async (req, res) => {
       }
 
       if (!sessionIdToUse) {
-        return res.status(401).json({ error: 'USB Hardware Key Required', code: 'USB_AUTH_REQUIRED' });
-      }
-
-      // Verify the session
-      const activeSession = await query(
-        "SELECT id FROM usb_sessions WHERE session_id = $1 AND user_id = $2 AND status = 'active' AND last_heartbeat >= NOW() - INTERVAL '15 seconds'",
-        [sessionIdToUse, user.id]
-      );
-
-      if (activeSession.rows.length === 0) {
         return res.status(401).json({ error: 'USB Hardware Key Required or Session Expired', code: 'USB_AUTH_REQUIRED' });
       }
 
