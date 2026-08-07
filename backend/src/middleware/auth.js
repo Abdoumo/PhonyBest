@@ -29,20 +29,17 @@ const authenticate = async (req, res, next) => {
     if (usbKeyRes.rows.length > 0) {
       // User requires USB auth
       
-      const sessionToken = req.cookies?.usb_session_token;
-      let hasValidUsbSession = false;
-
-      if (sessionToken) {
-        const sessionRes = await query("SELECT session_id, last_heartbeat FROM usb_sessions WHERE session_id = $1 AND user_id = $2 AND status = 'active'", [sessionToken, user.id]);
-        if (sessionRes.rows.length > 0) {
-          const session = sessionRes.rows[0];
-          const lastHeartbeat = new Date(session.last_heartbeat).getTime();
-          const now = Date.now();
-          if (now - lastHeartbeat <= 15000) { // 15 seconds timeout
-            hasValidUsbSession = true;
-          }
-        }
-      }
+      // Simply check if the user has an active session right now
+      const sessionRes = await query(`
+        SELECT session_id
+        FROM usb_sessions
+        WHERE user_id = $1
+          AND status = 'active'
+          AND last_heartbeat >= NOW() - INTERVAL '15 seconds'
+        LIMIT 1
+      `, [user.id]);
+      
+      let hasValidUsbSession = sessionRes.rows.length > 0;
 
       if (!hasValidUsbSession) {
         // Allow specific routes to bypass USB check so the frontend can still render the "Please Insert USB" screen gracefully
