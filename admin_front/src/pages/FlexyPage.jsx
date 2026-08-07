@@ -39,6 +39,8 @@ export default function FlexyPage() {
   const [result, setResult] = useState(null);
   const [clients, setClients] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [modems, setModems] = useState([]);
+  const [selectedModem, setSelectedModem] = useState('');
 
   const filteredClients = clients.filter(c => {
     if (!c.phone) return false;
@@ -57,14 +59,27 @@ export default function FlexyPage() {
     API.get('/users', { params: { limit: 1000 } })
       .then(r => setClients(r.data.users || []))
       .catch(e => console.error(e));
+      
+    // Fetch online modems for the admin to select from
+    API.get('/flexy/modems')
+      .then(r => setModems(r.data.modems || []))
+      .catch(e => console.error(e));
   }, []);
 
   const handleSend = async () => {
-    if (!number || !amount) return;
+    if (!number || number.length !== 10) {
+      setResult({ success: false, msg: 'الرجاء إدخال رقم هاتف صحيح مكون من 10 أرقام' });
+      return;
+    }
+    if (!amount) return;
     setLoading(true);
     setResult(null);
     try {
-      const { data } = await API.post('/flexy/send', { number, operator, amount, offer });
+      const payload = { number, operator, amount, offer };
+      if (selectedModem) {
+        payload.dongle_id = selectedModem;
+      }
+      const { data } = await API.post('/flexy/send', payload);
       setResult({ success: true, msg: `تم إرسال فليكسي! معاملة #${data.transaction.id}` });
     } catch (err) {
       setResult({ success: false, msg: err.response?.data?.error || 'فشل' });
@@ -99,21 +114,21 @@ export default function FlexyPage() {
           <div className="form-group" style={{ position: 'relative' }}>
             <label className="form-label"><FiPhone style={{ marginLeft: 4 }} />{t('رقم الهاتف أو اسم العميل')}</label>
             <input className="form-input phone-input-large" placeholder="0550000000" value={number}
-              maxLength={30}
+              maxLength={10}
               autoComplete="off"
               onFocus={() => setShowDropdown(true)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
               style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }}
               onChange={e => {
-                let val = e.target.value;
+                // Only allow digits
+                let val = e.target.value.replace(/\D/g, '');
                 setNumber(val);
                 setShowDropdown(true);
 
                 // Auto-detect operator based on digits
-                const digits = val.replace(/\D/g, '');
-                if (digits.startsWith('05')) { setOperator('ooredoo'); setOffer(''); }
-                else if (digits.startsWith('06')) { setOperator('mobilis'); setOffer(''); }
-                else if (digits.startsWith('07')) { setOperator('djezzy'); setOffer(''); }
+                if (val.startsWith('05')) { setOperator('ooredoo'); setOffer(''); setSelectedModem(''); }
+                else if (val.startsWith('06')) { setOperator('mobilis'); setOffer(''); setSelectedModem(''); }
+                else if (val.startsWith('07')) { setOperator('djezzy'); setOffer(''); setSelectedModem(''); }
               }} />
             
             {showDropdown && filteredClients.length > 0 && (
@@ -129,12 +144,12 @@ export default function FlexyPage() {
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     onClick={() => {
-                      setNumber(c.phone);
+                      const cleanPhone = c.phone.replace(/\D/g, '').substring(0, 10);
+                      setNumber(cleanPhone);
                       setShowDropdown(false);
-                      const digits = c.phone.replace(/\D/g, '');
-                      if (digits.startsWith('05')) { setOperator('ooredoo'); setOffer(''); }
-                      else if (digits.startsWith('06')) { setOperator('mobilis'); setOffer(''); }
-                      else if (digits.startsWith('07')) { setOperator('djezzy'); setOffer(''); }
+                      if (cleanPhone.startsWith('05')) { setOperator('ooredoo'); setOffer(''); setSelectedModem(''); }
+                      else if (cleanPhone.startsWith('06')) { setOperator('mobilis'); setOffer(''); setSelectedModem(''); }
+                      else if (cleanPhone.startsWith('07')) { setOperator('djezzy'); setOffer(''); setSelectedModem(''); }
                     }}
                   >
                     <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '1.1rem' }}>{c.full_name || c.username}</div>
@@ -161,14 +176,29 @@ export default function FlexyPage() {
               onChange={e => setAmount(Number(e.target.value))} placeholder={t("مبلغ مخصص")} />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">{t('العرض (اختياري)')}</label>
-            <select className="form-select" value={offer} onChange={e => setOffer(e.target.value)}>
-              <option value="">{t('بدون عرض')}</option>
-              {operatorOffers[operator]?.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+          <div className="form-group" style={{ display: 'flex', gap: 16 }}>
+            <div style={{ flex: 1 }}>
+              <label className="form-label">{t('العرض (اختياري)')}</label>
+              <select className="form-select" value={offer} onChange={e => setOffer(e.target.value)}>
+                <option value="">{t('بدون عرض')}</option>
+                {operatorOffers[operator]?.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            {modems.some(m => m.operator.toLowerCase().includes(operator)) && (
+              <div style={{ flex: 1 }}>
+                <label className="form-label">{t('اختيار المودم (اختياري)')}</label>
+                <select className="form-select" value={selectedModem} onChange={e => setSelectedModem(e.target.value)}>
+                  <option value="">{t('تحديد تلقائي (الأفضل رصيداً)')}</option>
+                  {modems.filter(m => m.operator.toLowerCase().includes(operator)).map(m => (
+                    <option key={m.dongle_id} value={m.dongle_id}>
+                      {m.name} ({m.balance != null ? m.balance + ' د.ج' : 'غير معروف'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {result && (
