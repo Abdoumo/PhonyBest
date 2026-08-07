@@ -77,7 +77,11 @@ export default function ModemGridPage() {
       ]);
       setStats(statsRes.data.stats);
       setNodes(nodesRes.data.nodes || []);
-      setDongles(donglesRes.data.dongles || []);
+      
+      const fetchedDongles = donglesRes.data.dongles || [];
+      console.log('Full Dongles Data from /wss/dongles:', fetchedDongles);
+      setDongles(fetchedDongles);
+      
       setPools(poolsRes.data.pools || []);
       setEvents(eventsRes.data.events || []);
       setQueue(queueRes.data.queue || []);
