@@ -250,11 +250,14 @@ class LocalBridgeHandler(BaseHTTPRequestHandler):
 
 def start_local_server():
     try:
-        server = HTTPServer(('127.0.0.1', 4005), LocalBridgeHandler)
+        # Bind to all interfaces to ensure it's accessible
+        server = HTTPServer(('', 4005), LocalBridgeHandler)
         server.serve_forever()
     except Exception as e:
-        print(f"\n  [!] CRITICAL ERROR starting local server on port 4005: {e}")
-        print("      The browser login will NOT work until this is fixed!\n")
+        import sys
+        print(f"\n  [!] CRITICAL ERROR starting local server on port 4005: {e}", flush=True)
+        print("      The browser login will NOT work until this is fixed!\n", flush=True)
+        sys.exit(1)
 
 # ═══════════════════════════════════════════════════════════════════
 # API Client
