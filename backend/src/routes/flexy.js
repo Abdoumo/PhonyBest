@@ -6,5 +6,6 @@ router.use(authenticate);
 router.post('/send', sendFlexy);
 router.get('/history', getFlexyHistory);
 router.post('/bulk', bulkFlexy);
+router.get('/modems', require('../controllers/flexyController').getOnlineModems);
 
 module.exports = router;

@@ -19,9 +19,10 @@ const OPERATOR_MAP = {
  * @param {string} operator - The operator name (e.g. 'mobilis', 'djezzy', 'ooredoo')
  * @param {number} amount - The topup amount
  * @param {string} apiName - Optional specific API name to use
+ * @param {string} dongleId - Optional specific modem/dongle ID to target
  * @returns {Object|null} - { nodeId, apiName } or null if no suitable target found
  */
-async function selectBestTarget(operator, amount, apiName = null) {
+async function selectBestTarget(operator, amount, apiName = null, dongleId = null) {
   const onlineNodeIds = nodeManager.getOnlineNodeIds();
   if (onlineNodeIds.length === 0) {
     return null;
@@ -56,6 +57,31 @@ async function selectBestTarget(operator, amount, apiName = null) {
       nodeName: best.node_name,
       totalBalance: parseFloat(best.total_balance),
     };
+  }
+
+  // If a specific dongle is requested, find the node that hosts it
+  if (dongleId) {
+    const specificDongleResult = await query(`
+      SELECT d.node_id, d.pool_ids
+      FROM wss_dongles d
+      WHERE d.dongle_id = $1 AND d.node_id = ANY($2) AND d.online = true
+    `, [dongleId, onlineNodeIds]);
+    
+    if (specificDongleResult.rows.length > 0) {
+      const d = specificDongleResult.rows[0];
+      const nResult = await query('SELECT name FROM wss_nodes WHERE id = $1', [d.node_id]);
+      const nodeName = nResult.rows[0]?.name || 'unknown';
+      const guessedApiName = guessApiName(operator, []); 
+
+      return {
+        nodeId: d.node_id,
+        apiName: guessedApiName,
+        poolName: 'specific_modem',
+        nodeName: nodeName,
+        totalBalance: amount, // Assume admin selected a modem with enough balance
+        dongleId: dongleId
+      };
+    }
   }
 
   // Operator-based routing

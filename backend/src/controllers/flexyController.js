@@ -7,7 +7,7 @@ const requestQueue = require('../wss/requestQueue');
  */
 const sendFlexy = async (req, res) => {
   try {
-    const { number, operator, amount, offer, variables: customVariables } = req.body;
+    const { number, operator, amount, offer, dongle_id, variables: customVariables } = req.body;
     const userId = req.user.id;
 
     if (!amount || amount <= 0) {
@@ -43,7 +43,7 @@ const sendFlexy = async (req, res) => {
 
     // --- Route through ModemGrid WSS ---
     // We can use the 'offer' field to specify an exact api_name (like 'test_var' or 'topup_mobilis')
-    const target = await routingEngine.selectBestTarget(operator, amount, offer);
+    const target = await routingEngine.selectBestTarget(operator, amount, offer, dongle_id);
 
     if (target) {
       // Build variables for the ModemGrid API
@@ -52,6 +52,12 @@ const sendFlexy = async (req, res) => {
         phone_number: number,
         price: String(amount),
       };
+      
+      // If a specific dongle was requested, pass it along in case the node script uses it directly
+      if (dongle_id) {
+        variables.dongle_id = dongle_id;
+        variables.target_modem = dongle_id;
+      }
 
       try {
         const wssResult = await requestQueue.enqueue(
@@ -287,4 +293,23 @@ const bulkFlexy = async (req, res) => {
   }
 };
 
-module.exports = { sendFlexy, getFlexyHistory, bulkFlexy };
+/**
+ * GET /api/v1/flexy/modems
+ */
+const getOnlineModems = async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT d.dongle_id, d.name, d.operator, d.balance
+      FROM wss_dongles d
+      JOIN wss_nodes n ON d.node_id = n.id
+      WHERE d.online = true AND n.status = 'online'
+      ORDER BY d.operator, d.name
+    `);
+    res.json({ success: true, modems: result.rows });
+  } catch (err) {
+    console.error('Get modems error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { sendFlexy, getFlexyHistory, bulkFlexy, getOnlineModems };
