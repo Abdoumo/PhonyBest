@@ -220,17 +220,21 @@ class LocalBridgeHandler(BaseHTTPRequestHandler):
         pass # Suppress logs
         
     def do_OPTIONS(self):
+        origin = self.headers.get('Origin', '*')
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', '*')
+        self.send_header('Access-Control-Allow-Origin', origin)
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', self.headers.get('Access-Control-Request-Headers', '*'))
+        self.send_header('Access-Control-Allow-Private-Network', 'true')
         self.end_headers()
 
     def do_GET(self):
+        origin = self.headers.get('Origin', '*')
         if self.path == '/get-session':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Origin', origin)
+            self.send_header('Access-Control-Allow-Private-Network', 'true')
             self.end_headers()
             
             global global_client
