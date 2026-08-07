@@ -72,14 +72,33 @@ const login = async (req, res) => {
     const usbAuthRequired = usbKeyResult.rows.length > 0;
 
     if (usbAuthRequired) {
-      if (!usb_session_id) {
+      // Find an active session matching the IP address, OR use the provided session_id
+      const activeSessionResult = await query(`
+        SELECT s.session_id
+        FROM usb_sessions s
+        JOIN session_logs l ON l.user_id = s.user_id AND l.action = 'usb_login'
+        WHERE s.user_id = $1
+          AND s.status = 'active'
+          AND s.last_heartbeat >= NOW() - INTERVAL '15 seconds'
+          AND l.ip_address = $2
+          AND l.created_at >= NOW() - INTERVAL '1 hour'
+        ORDER BY l.created_at DESC LIMIT 1
+      `, [user.id, req.ip]);
+
+      let sessionIdToUse = usb_session_id;
+
+      if (!sessionIdToUse && activeSessionResult.rows.length > 0) {
+        sessionIdToUse = activeSessionResult.rows[0].session_id;
+      }
+
+      if (!sessionIdToUse) {
         return res.status(401).json({ error: 'USB Hardware Key Required', code: 'USB_AUTH_REQUIRED' });
       }
 
-      // Verify the provided session id is active and belongs to this user
+      // Verify the session
       const activeSession = await query(
         "SELECT id FROM usb_sessions WHERE session_id = $1 AND user_id = $2 AND status = 'active' AND last_heartbeat >= NOW() - INTERVAL '15 seconds'",
-        [usb_session_id, user.id]
+        [sessionIdToUse, user.id]
       );
 
       if (activeSession.rows.length === 0) {
@@ -87,7 +106,7 @@ const login = async (req, res) => {
       }
 
       // Issue HttpOnly Cookie
-      res.cookie('usb_session_token', usb_session_id, {
+      res.cookie('usb_session_token', sessionIdToUse, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',

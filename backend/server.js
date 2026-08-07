@@ -10,6 +10,7 @@ const { createTables } = require('./src/database/init');
 const cookieParser = require('cookie-parser');
 
 const app = express();
+app.set('trust proxy', true);
 app.use(cookieParser());
 const server = http.createServer(app);
 
