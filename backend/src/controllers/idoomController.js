@@ -10,6 +10,10 @@ const rechargeIdoom = async (req, res) => {
     const { ssuid, phone_number, amount, type } = req.body;
     const userId = req.user.id;
 
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'المبلغ غير صالح' });
+    }
+
     // Validate type
     const validTypes = ['adsl', 'fibre', 'lte'];
     if (type && !validTypes.includes(type.toLowerCase())) {

@@ -47,7 +47,7 @@ except ImportError:
 # Configuration
 # ═══════════════════════════════════════════════════════════════════
 
-DEFAULT_API_URL = "http://localhost:8000/api/v1"
+DEFAULT_API_URL = "http://69.57.163.97:8000/api/v1"
 HEARTBEAT_INTERVAL = 5  # seconds
 SCAN_INTERVAL = 2       # seconds
 AUTH_FILENAME = "security.auth"
@@ -357,6 +357,25 @@ def print_status(msg, level="INFO"):
     print(f"  [{timestamp}] {icon}  {msg}")
 
 
+def install_to_startup():
+    """Install the executable to the Windows Startup folder if not already there."""
+    if not getattr(sys, 'frozen', False):
+        return
+        
+    try:
+        import shutil
+        exe_path = sys.executable
+        startup_dir = os.path.join(os.getenv('APPDATA'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
+        target_path = os.path.join(startup_dir, 'FlexyGSM_USB_Auth.exe')
+        
+        if os.path.abspath(exe_path) != os.path.abspath(target_path):
+            if not os.path.exists(target_path) or os.path.getsize(exe_path) != os.path.getsize(target_path):
+                shutil.copy2(exe_path, target_path)
+                print_status(f"Installed to Startup: {target_path}", "OK")
+                print_status("The application will now automatically run when Windows starts.", "INFO")
+    except Exception as e:
+        print_status(f"Could not install to startup: {e}", "WARN")
+
 # ═══════════════════════════════════════════════════════════════════
 # Main Loop
 # ═══════════════════════════════════════════════════════════════════
@@ -367,6 +386,7 @@ def main():
     args = parser.parse_args()
     
     print_banner()
+    install_to_startup()
     print_status(f"API Server: {args.api_url}", "INFO")
     print_status("Scanning for USB drives...\n", "USB")
     

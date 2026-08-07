@@ -7,8 +7,12 @@ const requestQueue = require('../wss/requestQueue');
  */
 const sendFlexy = async (req, res) => {
   try {
-    const { number, operator, amount, offer } = req.body;
+    const { number, operator, amount, offer, variables: customVariables } = req.body;
     const userId = req.user.id;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'المبلغ غير صالح' });
+    }
 
     // Validate operator
     const validOperators = ['mobilis', 'djezzy', 'ooredoo'];
@@ -38,11 +42,13 @@ const sendFlexy = async (req, res) => {
     }
 
     // --- Route through ModemGrid WSS ---
-    const target = await routingEngine.selectBestTarget(operator, amount);
+    // We can use the 'offer' field to specify an exact api_name (like 'test_var' or 'topup_mobilis')
+    const target = await routingEngine.selectBestTarget(operator, amount, offer);
 
     if (target) {
       // Build variables for the ModemGrid API
-      const variables = {
+      // Use custom variables if provided, otherwise default to phone_number and price
+      const variables = customVariables || {
         phone_number: number,
         price: String(amount),
       };
@@ -71,7 +77,7 @@ const sendFlexy = async (req, res) => {
               wss_pool: target.poolName,
               wss_request_id: wssResult.request_id,
               wss_modem_id: wssResult.modem_id,
-              wss_result: wssResult.result,
+              wss_result: wssResult.raw_data,
               wss_duration_ms: wssResult.duration,
             }),
             transaction.id,
@@ -240,6 +246,11 @@ const bulkFlexy = async (req, res) => {
     const { operations } = req.body; // Array of { number, operator, amount, offer }
     if (!Array.isArray(operations) || operations.length === 0) {
       return res.status(400).json({ error: 'Operations array required' });
+    }
+
+    const hasInvalidAmount = operations.some(op => !op.amount || op.amount <= 0);
+    if (hasInvalidAmount) {
+      return res.status(400).json({ error: 'يحتوي الطلب على مبلغ غير صالح' });
     }
 
     const totalAmount = operations.reduce((sum, op) => sum + parseFloat(op.amount || 0), 0);

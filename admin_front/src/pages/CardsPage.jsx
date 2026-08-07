@@ -315,7 +315,9 @@ export default function CardsPage() {
 
             <div className="form-group">
               <label className="form-label">{t('قيمة البطاقات (فئة السعر)')}</label>
-              <input className="form-input" type="number" value={uploadValue} onChange={e => setUploadValue(Number(e.target.value))} />
+              <input className="form-input" type="number" min="1" value={uploadValue} 
+                onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                onChange={e => setUploadValue(Number(e.target.value))} />
             </div>
 
             <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={processUpload}>{t('بدء الرفع')}</button>
@@ -363,7 +365,9 @@ export default function CardsPage() {
 
             <div className="form-group">
               <label className="form-label">{t('الكمية المطلوبة')}</label>
-              <input className="form-input" type="number" min="1" value={buyForm.quantity} onChange={e => setBuyForm({...buyForm, quantity: Number(e.target.value)})} />
+              <input className="form-input" type="number" min="1" value={buyForm.quantity} 
+                onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                onChange={e => setBuyForm({...buyForm, quantity: Number(e.target.value)})} />
             </div>
 
             <div style={{ padding: 12, background: 'var(--bg-input)', borderRadius: 8, marginBottom: 16, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>

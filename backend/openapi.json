@@ -24,7 +24,7 @@
     },
     "/api/v1/auth/login": {
       "post": {
-        "description": "**Required Roles:** PUBLIC\n",
+        "description": "",
         "parameters": [
           {
             "name": "user-agent",
@@ -64,15 +64,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "AUTH"
-        ]
+        }
       }
     },
     "/api/v1/auth/refresh": {
       "post": {
-        "description": "**Required Roles:** PUBLIC\n",
+        "description": "",
         "responses": {
           "200": {
             "description": "OK"
@@ -97,15 +94,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "AUTH"
-        ]
+        }
       }
     },
     "/api/v1/auth/logout": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -149,20 +143,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "AUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/auth/me": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -185,20 +171,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "AUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/users/": {
       "get": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO, GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -256,18 +234,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USERS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       },
       "post": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -340,20 +310,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "USERS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/users/{id}": {
       "get": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO, GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -387,18 +349,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USERS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       },
       "put": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -476,18 +430,10 @@
               }
             }
           }
-        },
-        "tags": [
-          "USERS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       },
       "delete": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -521,20 +467,43 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USERS"
-        ],
-        "security": [
+        }
+      }
+    },
+    "/api/v1/users/me/logo": {
+      "post": {
+        "description": "",
+        "parameters": [
           {
-            "bearerAuth": []
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
-        ]
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
       }
     },
     "/api/v1/users/{id}/debt": {
       "post": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -588,20 +557,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "USERS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/flexy/send": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -626,6 +587,9 @@
           },
           "500": {
             "description": "Internal Server Error"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         },
         "requestBody": {
@@ -645,25 +609,20 @@
                   },
                   "offer": {
                     "example": "any"
+                  },
+                  "variables": {
+                    "example": "any"
                   }
                 }
               }
             }
           }
-        },
-        "tags": [
-          "FLEXY"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/flexy/history": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -721,20 +680,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "FLEXY"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/flexy/bulk": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -774,20 +725,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "FLEXY"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/idoom/recharge": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -812,6 +755,9 @@
           },
           "500": {
             "description": "Internal Server Error"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         },
         "requestBody": {
@@ -836,20 +782,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "IDOOM"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/idoom/history": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -886,20 +824,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "IDOOM"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/cards/upload": {
       "post": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -939,20 +869,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "CARDS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/cards/buy": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -998,20 +920,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "CARDS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/cards/stock": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1083,20 +997,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "CARDS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/cards/transactions": {
       "get": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1119,20 +1025,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "CARDS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/cards/sell": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1181,20 +1079,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "CARDS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/cards/{id}/send": {
       "post": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -1242,20 +1132,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "CARDS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/cards/{id}/used": {
       "put": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -1286,20 +1168,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "CARDS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/wallet/history": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1329,20 +1203,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "WALLET"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/wallet/add": {
       "post": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1388,20 +1254,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "WALLET"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/wallet/remove": {
       "post": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1450,20 +1308,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "WALLET"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/wallet/transfer": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1515,20 +1365,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "WALLET"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/commissions/": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1551,18 +1393,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "COMMISSIONS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       },
       "post": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1617,20 +1451,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "COMMISSIONS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/commissions/{id}": {
       "delete": {
-        "description": "**Required Roles:** ADMIN, SUPER_GRO\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -1661,20 +1487,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "COMMISSIONS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/ads/": {
       "get": {
-        "description": "**Required Roles:** PUBLIC\n",
+        "description": "",
         "responses": {
           "200": {
             "description": "OK"
@@ -1682,13 +1500,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "ADS"
-        ]
+        }
       },
       "post": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1743,20 +1558,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "ADS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/ads/all": {
       "get": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1779,20 +1586,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "ADS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/ads/{id}": {
       "put": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -1855,18 +1654,10 @@
               }
             }
           }
-        },
-        "tags": [
-          "ADS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       },
       "delete": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -1897,20 +1688,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "ADS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/ads/{id}/status": {
       "put": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "id",
@@ -1955,20 +1738,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "ADS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/dashboard/stats": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -1991,20 +1766,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "DASHBOARD"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/settings/": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2027,18 +1794,10 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "SETTINGS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       },
       "post": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2061,20 +1820,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "SETTINGS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/transactions/": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2139,20 +1890,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "TRANSACTIONS"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/verify": {
       "post": {
-        "description": "**Required Roles:** PUBLIC\n",
+        "description": "",
         "parameters": [
           {
             "name": "user-agent",
@@ -2198,15 +1941,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/heartbeat": {
       "post": {
-        "description": "**Required Roles:** PUBLIC\n",
+        "description": "",
         "responses": {
           "200": {
             "description": "OK"
@@ -2237,15 +1977,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/logout": {
       "post": {
-        "description": "**Required Roles:** PUBLIC\n",
+        "description": "",
         "parameters": [
           {
             "name": "user-agent",
@@ -2279,15 +2016,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/session-status": {
       "get": {
-        "description": "**Required Roles:** PUBLIC\n",
+        "description": "",
         "parameters": [
           {
             "name": "user_id",
@@ -2314,15 +2048,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/generate-my-key": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2345,20 +2076,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/my-key": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2381,20 +2104,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/my-session": {
       "get": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2417,20 +2132,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/reset-my-serial": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2453,20 +2160,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/revoke-my-key": {
       "post": {
-        "description": "**Required Roles:** ANY AUTHENTICATED USER\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2489,20 +2188,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/generate-key": {
       "post": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2545,20 +2236,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/download-key/{userId}": {
       "get": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "userId",
@@ -2592,20 +2275,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/keys": {
       "get": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2628,20 +2303,12 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/revoke": {
       "post": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2681,20 +2348,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/reset-serial": {
       "post": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2734,20 +2393,12 @@
               }
             }
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/usb-auth/sessions": {
       "get": {
-        "description": "**Required Roles:** ADMIN\n",
+        "description": "",
         "parameters": [
           {
             "name": "authorization",
@@ -2770,15 +2421,596 @@
           "500": {
             "description": "Internal Server Error"
           }
-        },
-        "tags": [
-          "USBAUTH"
-        ],
-        "security": [
+        }
+      }
+    },
+    "/api/v1/notifications/": {
+      "get": {
+        "description": "",
+        "parameters": [
           {
-            "bearerAuth": []
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
-        ]
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "user_id": {
+                    "example": "any"
+                  },
+                  "title": {
+                    "example": "any"
+                  },
+                  "message": {
+                    "example": "any"
+                  },
+                  "type": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/clear": {
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/{id}": {
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/wss/nodes": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wss/nodes/{id}": {
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/wss/nodes/{id}/regenerate-token": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/wss/nodes/{id}/dongles": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/wss/dongles": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/wss/pools": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/wss/stats": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/wss/queue": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/wss/events": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/wss/history": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
       }
     }
   },

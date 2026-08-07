@@ -23,10 +23,12 @@
     "pg": "^8.11.3",
     "redis": "^4.6.10",
     "socket.io": "^4.7.2",
-    "uuid": "^9.0.0",
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^14.0.1",
     "ws": "^8.21.0"
   },
   "devDependencies": {
+    "js-yaml": "^5.2.3",
     "nodemon": "^3.0.2",
     "swagger-autogen": "^2.23.7"
   }

@@ -137,6 +137,7 @@ async function handleResult(nodeId, data) {
     error,
     modem_id,
     duration,
+    raw_data: data,
   });
 
   // Resolve the promise

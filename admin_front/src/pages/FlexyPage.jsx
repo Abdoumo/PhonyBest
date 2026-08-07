@@ -156,7 +156,8 @@ export default function FlexyPage() {
                 </button>
               ))}
             </div>
-            <input className="form-input" type="number" value={amount}
+            <input className="form-input" type="number" min="1" value={amount}
+              onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
               onChange={e => setAmount(Number(e.target.value))} placeholder={t("مبلغ مخصص")} />
           </div>
 

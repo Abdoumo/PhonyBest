@@ -9,17 +9,17 @@ const getDashboardStats = async (req, res) => {
     const isAdmin = req.user.role === 'ADMIN';
 
     const [todayEarnings, totalTx, failedTx, activeSims, totalUsers, walletSum, myWallet] = await Promise.all([
-      query(`SELECT COALESCE(SUM(profit),0) as total FROM transactions WHERE DATE(created_at)=$1 AND status='success' ${!isAdmin ? `AND processed_by=${userId}` : ''}`, [today]),
-      query(`SELECT COUNT(*) as total FROM transactions WHERE DATE(created_at)=$1 ${!isAdmin ? `AND client_id=${userId}` : ''}`, [today]),
-      query(`SELECT COUNT(*) as total FROM transactions WHERE status='failed' AND DATE(created_at)=$1 ${!isAdmin ? `AND client_id=${userId}` : ''}`, [today]),
+      query(`SELECT COALESCE(SUM(profit),0) as total FROM transactions WHERE DATE(created_at)=$1 AND status='success' ${!isAdmin ? 'AND processed_by=$2' : ''}`, isAdmin ? [today] : [today, userId]),
+      query(`SELECT COUNT(*) as total FROM transactions WHERE DATE(created_at)=$1 ${!isAdmin ? 'AND client_id=$2' : ''}`, isAdmin ? [today] : [today, userId]),
+      query(`SELECT COUNT(*) as total FROM transactions WHERE status='failed' AND DATE(created_at)=$1 ${!isAdmin ? 'AND client_id=$2' : ''}`, isAdmin ? [today] : [today, userId]),
       query(`SELECT COUNT(*) as total FROM sim_cards WHERE status='active'`),
-      query(`SELECT COUNT(*) as total FROM users WHERE status='active' ${!isAdmin ? `AND parent_id=${userId}` : ''}`),
+      query(`SELECT COUNT(*) as total FROM users WHERE status='active' ${!isAdmin ? 'AND parent_id=$1' : ''}`, isAdmin ? [] : [userId]),
       query(`SELECT COALESCE(SUM(wallet),0) as total FROM users`),
       query(`SELECT wallet FROM users WHERE id=$1`, [userId])
     ]);
 
-    const recentTx = await query(`SELECT t.*, u.username as client_name FROM transactions t LEFT JOIN users u ON t.client_id=u.id ${!isAdmin ? `WHERE t.client_id=${userId}` : ''} ORDER BY t.created_at DESC LIMIT 10`);
-    const chartData = await query(`SELECT DATE(created_at) as date, SUM(amount) as volume, SUM(profit) as profit, COUNT(*) as count FROM transactions WHERE created_at >= NOW() - INTERVAL '30 days' AND status='success' ${!isAdmin ? `AND client_id=${userId}` : ''} GROUP BY DATE(created_at) ORDER BY date`);
+    const recentTx = await query(`SELECT t.*, u.username as client_name FROM transactions t LEFT JOIN users u ON t.client_id=u.id ${!isAdmin ? 'WHERE t.client_id=$1' : ''} ORDER BY t.created_at DESC LIMIT 10`, isAdmin ? [] : [userId]);
+    const chartData = await query(`SELECT DATE(created_at) as date, SUM(amount) as volume, SUM(profit) as profit, COUNT(*) as count FROM transactions WHERE created_at >= NOW() - INTERVAL '30 days' AND status='success' ${!isAdmin ? 'AND client_id=$1' : ''} GROUP BY DATE(created_at) ORDER BY date`, isAdmin ? [] : [userId]);
 
     // ModemGrid stats (admin only)
     let modemGridStats = null;

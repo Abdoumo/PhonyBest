@@ -7,6 +7,11 @@ const uploadCards = async (req, res) => {
       return res.status(400).json({ error: 'Cards array required' });
     }
 
+    const hasInvalidValue = cards.some(c => !c.value || c.value <= 0);
+    if (hasInvalidValue) {
+      return res.status(400).json({ error: 'تحتوي البطاقات على قيمة غير صالحة' });
+    }
+
     // Check wallet balance
     const totalValue = cards.reduce((sum, c) => sum + parseFloat(c.value || 0), 0);
     const userRes = await query(`SELECT wallet, role FROM users WHERE id=$1`, [req.user.id]);
@@ -101,6 +106,11 @@ const buyCards = async (req, res) => {
   try {
     const { operator, value, quantity } = req.body;
     const qty = parseInt(quantity);
+    
+    if (!qty || qty <= 0 || !value || value <= 0) {
+      return res.status(400).json({ error: 'الكمية أو القيمة غير صالحة' });
+    }
+
     let totalCost = parseFloat(value) * qty;
     let baseTotal = totalCost;
 

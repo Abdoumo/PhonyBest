@@ -67,6 +67,14 @@ const getUsers = async (req, res) => {
  */
 const getUser = async (req, res) => {
   try {
+    // IDOR Protection: If not ADMIN and not self, check if the user is a direct child
+    if (req.user.role !== 'ADMIN' && req.user.id !== parseInt(req.params.id)) {
+      const checkOwnership = await query('SELECT id FROM users WHERE id = $1 AND parent_id = $2', [req.params.id, req.user.id]);
+      if (checkOwnership.rows.length === 0) {
+        return res.status(403).json({ error: 'Access denied. You can only view your own clients.' });
+      }
+    }
+
     const result = await query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.wilaya, u.role, u.wallet, u.debt, u.debt_limit, 
               u.profit_percentage, u.status, u.parent_id, u.permissions, u.last_login, u.created_at, u.logo_url,
@@ -216,6 +224,15 @@ const deleteUser = async (req, res) => {
 const manageDebt = async (req, res) => {
   try {
     const userId = req.params.id;
+    
+    // IDOR Protection: Enforce hierarchy for debt management
+    if (req.user.role !== 'ADMIN') {
+      const checkOwnership = await query('SELECT id FROM users WHERE id = $1 AND parent_id = $2', [userId, req.user.id]);
+      if (checkOwnership.rows.length === 0) {
+        return res.status(403).json({ error: 'Access denied. You can only manage debt for your direct clients.' });
+      }
+    }
+
     // type: 'add_debt' (user took credit), 'pay_debt' (user paid back)
     const { type, amount, notes } = req.body;
     const value = parseFloat(amount);

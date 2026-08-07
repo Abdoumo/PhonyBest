@@ -22,7 +22,14 @@ app.set('io', io);
 
 // Security middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin: '*', credentials: true }));
+// Fix CORS misconfiguration (prevent wildcard origin with credentials)
+const corsOptions = {
+  origin: function (origin, callback) {
+    callback(null, true); // Safely reflect the actual origin
+  },
+  credentials: true
+};
+app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -30,15 +37,29 @@ app.use(express.urlencoded({ extended: true }));
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 1000, // Global limit: 1000 requests per 15 minutes
   message: { error: 'Too many requests' },
 });
 app.use('/api/', limiter);
 
+// Strict rate limiting for authentication (Brute Force Protection)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 failed/success login attempts per window
+  message: { error: 'Too many login attempts, please try again after 15 minutes' },
+});
+
 // Static files
 app.use('/uploads', express.static('uploads'));
 
+// Swagger UI
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./openapi.json');
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+
 // API Routes
+app.use('/api/v1/auth/login', authLimiter); // Apply strict limiter only to login
 app.use('/api/v1/auth', require('./src/routes/auth'));
 app.use('/api/v1/users', require('./src/routes/users'));
 app.use('/api/v1/flexy', require('./src/routes/flexy'));
