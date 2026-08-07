@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import {
   FiServer, FiCpu, FiDollarSign, FiClock, FiPlus, FiTrash2,
   FiRefreshCw, FiWifi, FiWifiOff, FiCopy, FiX, FiActivity,
-  FiAlertCircle, FiCheckCircle, FiInfo, FiKey
+  FiAlertCircle, FiCheckCircle, FiInfo, FiKey, FiCode
 } from 'react-icons/fi';
 import { io as socketIO } from 'socket.io-client';
 
@@ -63,6 +63,7 @@ export default function ModemGridPage() {
   const [newNodeName, setNewNodeName] = useState('');
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selectedModemJson, setSelectedModemJson] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -323,6 +324,7 @@ export default function ModemGridPage() {
                   <th>{t('الحالة')}</th>
                   <th>{t('الرصيد')}</th>
                   <th>{t('المجموعات')}</th>
+                  <th>{t('إجراءات')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -348,6 +350,11 @@ export default function ModemGridPage() {
                     </td>
                     <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                       {d.pool_ids?.length > 0 ? d.pool_ids.join(', ') : '—'}
+                    </td>
+                    <td>
+                      <button className="btn btn-sm btn-secondary" onClick={() => setSelectedModemJson(d)} title={t('عرض JSON')}>
+                        <FiCode size={14} />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -540,6 +547,25 @@ export default function ModemGridPage() {
             <button className="btn btn-primary" onClick={() => setShowTokenModal(null)} style={{ width: '100%', justifyContent: 'center' }}>
               {t('فهمت، تم الحفظ')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modem JSON Modal */}
+      {selectedModemJson && (
+        <div className="mg-modal-overlay" onClick={() => setSelectedModemJson(null)}>
+          <div className="mg-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, width: '90%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center' }}><FiCode size={18} style={{marginInlineEnd: 8}}/>{t('تفاصيل المودم (JSON)')}</h3>
+              <button onClick={() => setSelectedModemJson(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <FiX size={20} />
+              </button>
+            </div>
+            <div style={{ background: '#1e1e1e', color: '#d4d4d4', padding: 16, borderRadius: 8, overflow: 'auto', maxHeight: '60vh', fontFamily: 'monospace', fontSize: 13, textAlign: 'left', direction: 'ltr' }}>
+              <pre style={{ margin: 0 }}>
+                {JSON.stringify(selectedModemJson, null, 2)}
+              </pre>
+            </div>
           </div>
         </div>
       )}

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSelector } from 'react-redux';
-import { FiCreditCard, FiUpload, FiSearch, FiFilter, FiShoppingCart } from 'react-icons/fi';
+import { FiCreditCard, FiUpload, FiSearch, FiFilter, FiShoppingCart, FiSettings, FiTrash2, FiPlus } from 'react-icons/fi';
 import API from '../api/axios';
 
-const categories = [
+const defaultCategories = [
   { id: 'ooredoo', name: 'Ooredoo', color: '#ed1c24', icon: 'O' },
   { id: 'djezzy', name: 'Djezzy', color: '#e4002b', icon: 'D' },
   { id: 'mobilis', name: 'Mobilis', color: '#00b140', icon: 'M' },
@@ -19,7 +19,8 @@ export default function CardsPage() {
   const { user } = useSelector(s => s.auth);
   const isAdmin = user?.role === 'ADMIN';
 
-  const [selectedCat, setSelectedCat] = useState(categories[0].id);
+  const [categories, setCategories] = useState(defaultCategories);
+  const [selectedCat, setSelectedCat] = useState(defaultCategories[0].id);
   const [cards, setCards] = useState([]);
   const [storeSummary, setStoreSummary] = useState([]);
   const [search, setSearch] = useState('');
@@ -41,6 +42,28 @@ export default function CardsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [valueFilter, setValueFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+
+  const [showManageCatModal, setShowManageCatModal] = useState(false);
+  const [newCat, setNewCat] = useState({ id: '', name: '', color: '#6366f1', icon: '' });
+  const [savingCats, setSavingCats] = useState(false);
+
+  const loadCategories = async () => {
+    try {
+      const res = await API.get('/settings');
+      let savedCats = res.data.settings?.card_categories;
+      if (savedCats) {
+        if (typeof savedCats === 'string') savedCats = JSON.parse(savedCats);
+        if (Array.isArray(savedCats) && savedCats.length > 0) {
+          setCategories(savedCats);
+          if (!savedCats.find(c => c.id === selectedCat)) {
+            setSelectedCat(savedCats[0].id);
+          }
+        }
+      }
+    } catch (e) { console.error('Error loading categories:', e); }
+  };
+
+  useEffect(() => { loadCategories(); }, []);
 
   const loadCards = async () => {
     setLoading(true);
@@ -133,6 +156,43 @@ export default function CardsPage() {
     }
   };
 
+  const handleSaveCategories = async (catsToSave) => {
+    setSavingCats(true);
+    try {
+      await API.post('/settings', { card_categories: JSON.stringify(catsToSave) });
+      setCategories(catsToSave);
+      alert(t('تم حفظ الفئات بنجاح'));
+    } catch (e) {
+      alert(t('حدث خطأ أثناء حفظ الفئات'));
+    }
+    setSavingCats(false);
+  };
+
+  const handleAddCategory = () => {
+    if (!newCat.id || !newCat.name || !newCat.icon) {
+      alert(t('يرجى ملء جميع الحقول'));
+      return;
+    }
+    if (categories.find(c => c.id === newCat.id)) {
+      alert(t('معرف الفئة موجود مسبقاً'));
+      return;
+    }
+    const updated = [...categories, newCat];
+    handleSaveCategories(updated);
+    setNewCat({ id: '', name: '', color: '#6366f1', icon: '' });
+  };
+
+  const handleDeleteCategory = (id) => {
+    if (categories.length === 1) {
+      alert(t('لا يمكن حذف جميع الفئات'));
+      return;
+    }
+    if (!window.confirm(t('هل أنت متأكد من حذف هذه الفئة؟'))) return;
+    const updated = categories.filter(c => c.id !== id);
+    if (selectedCat === id) setSelectedCat(updated[0].id);
+    handleSaveCategories(updated);
+  };
+
   const filteredCards = cards.filter(c => {
     const matchSearch = (c.serial && c.serial.toLowerCase().includes(search.toLowerCase())) || 
                         (c.pin && c.pin.toLowerCase().includes(search.toLowerCase()));
@@ -158,12 +218,15 @@ export default function CardsPage() {
           <p className="page-subtitle">{t('إدارة مخزون البطاقات والمبيعات')}</p>
         </div>
         {isAdmin ? (
-          <>
+          <div style={{ display: 'flex', gap: 8 }}>
             <input type="file" accept=".txt,.csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
-            <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
-              <FiUpload size={14} style={{marginLeft:4}}/> {t('رفع بطاقات')} ({t(categories.find(c => c.id === selectedCat)?.name)})
+            <button className="btn btn-secondary" onClick={() => setShowManageCatModal(true)}>
+              <FiSettings size={14} style={{marginLeft:4}}/> {t('إدارة الفئات')}
             </button>
-          </>
+            <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
+              <FiUpload size={14} style={{marginLeft:4}}/> {t('رفع بطاقات')} ({t(categories.find(c => c.id === selectedCat)?.name || '')})
+            </button>
+          </div>
         ) : (
           <button className="btn btn-primary" onClick={() => setShowBuyModal(true)}>
             <FiShoppingCart size={14} style={{marginLeft:4}}/> {t('شراء بطاقات')} ({t(categories.find(c => c.id === selectedCat)?.name)})
@@ -378,6 +441,84 @@ export default function CardsPage() {
             </div>
 
             <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleBuyCards} disabled={!buyForm.value || buyForm.quantity < 1}>{t('تأكيد الشراء')}</button>
+          </div>
+        </div>
+      )}
+
+      {showManageCatModal && isAdmin && (
+        <div className="modal-overlay" onClick={() => setShowManageCatModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+            <div className="modal-header">
+              <h3 className="modal-title">{t('إدارة الفئات')}</h3>
+              <button className="modal-close" onClick={() => setShowManageCatModal(false)}>×</button>
+            </div>
+            
+            <div className="table-wrapper" style={{ maxHeight: 300, overflow: 'auto', marginBottom: 16 }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t('المعرف')} (ID)</th>
+                    <th>{t('الاسم')}</th>
+                    <th>{t('الأيقونة')}</th>
+                    <th>{t('اللون')}</th>
+                    <th>{t('إجراء')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map(c => (
+                    <tr key={c.id}>
+                      <td style={{ fontFamily: 'monospace' }}>{c.id}</td>
+                      <td style={{ fontWeight: 600 }}>{c.name}</td>
+                      <td>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: c.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 12 }}>
+                          {c.icon}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 16, height: 16, borderRadius: 4, background: c.color }}></div>
+                          {c.color}
+                        </div>
+                      </td>
+                      <td>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleDeleteCategory(c.id)} title={t('حذف')}>
+                          <FiTrash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ padding: 16, background: 'var(--bg-input)', borderRadius: 'var(--radius)' }}>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: 14 }}>{t('إضافة فئة جديدة')}</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: 12 }}>{t('المعرف (إنجليزي، بدون مسافات)')}</label>
+                  <input className="form-input" placeholder="e.g. netflix" value={newCat.id} onChange={e => setNewCat({...newCat, id: e.target.value.toLowerCase().replace(/\s+/g, '')})} />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: 12 }}>{t('اسم الفئة')}</label>
+                  <input className="form-input" placeholder="e.g. Netflix" value={newCat.name} onChange={e => setNewCat({...newCat, name: e.target.value})} />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: 12 }}>{t('نص الأيقونة (1-2 أحرف)')}</label>
+                  <input className="form-input" placeholder="e.g. N" maxLength="2" value={newCat.icon} onChange={e => setNewCat({...newCat, icon: e.target.value})} />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: 12 }}>{t('اللون')}</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="color" style={{ width: 38, height: 38, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }} value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} />
+                    <input className="form-input" value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+              <button className="btn btn-primary" onClick={handleAddCategory} disabled={savingCats}>
+                {savingCats ? <span className="spinner" style={{width: 14, height: 14}} /> : <FiPlus size={14} style={{marginLeft: 4}} />}
+                {t('إضافة فئة')}
+              </button>
+            </div>
           </div>
         </div>
       )}
