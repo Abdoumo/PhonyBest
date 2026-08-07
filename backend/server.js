@@ -7,8 +7,10 @@ const http = require('http');
 const { Server } = require('socket.io');
 const rateLimit = require('express-rate-limit');
 const { createTables } = require('./src/database/init');
+const cookieParser = require('cookie-parser');
 
 const app = express();
+app.use(cookieParser());
 const server = http.createServer(app);
 
 // Socket.IO

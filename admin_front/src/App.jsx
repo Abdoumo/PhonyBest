@@ -30,6 +30,8 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+import UsbSessionGuard from './components/UsbSessionGuard';
+
 function AppRoutes() {
   const dispatch = useDispatch();
   const { user, initialized } = useSelector(s => s.auth);
@@ -46,7 +48,7 @@ function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route path="/" element={<ProtectedRoute><UsbSessionGuard><Layout /></UsbSessionGuard></ProtectedRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="flexy" element={<FlexyPage />} />

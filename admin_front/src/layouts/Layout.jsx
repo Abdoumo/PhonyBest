@@ -3,7 +3,6 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../redux/authSlice';
 import API from '../api/axios';
-import UsbSessionGuard from '../components/UsbSessionGuard';
 import { io as socketIO } from 'socket.io-client';
 import {
   FiHome, FiZap, FiWifi, FiCreditCard, FiGift, FiUsers,
@@ -68,8 +67,6 @@ export default function Layout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const notifRef = useRef(null);
-
-  const usbGuardEnabled = user?.usb_auth_required || (globalSettings?.usb_auth_enabled === 'true' || globalSettings?.usb_auth_enabled === true);
 
   useEffect(() => {
     API.get('/settings').then(res => {
@@ -443,9 +440,7 @@ export default function Layout() {
           </div>
         </header>
         <main className="page">
-          <UsbSessionGuard enabled={usbGuardEnabled}>
-            <Outlet />
-          </UsbSessionGuard>
+          <Outlet />
         </main>
       </div>
     </div>

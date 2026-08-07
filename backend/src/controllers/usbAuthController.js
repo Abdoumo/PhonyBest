@@ -581,6 +581,44 @@ const listSessions = async (req, res) => {
   }
 };
 
+/**
+ * Link browser session to active USB session via localhost bridge
+ * POST /api/v1/usb-auth/link-session
+ * Body: { session_id }
+ */
+const linkSession = async (req, res) => {
+  try {
+    const { session_id } = req.body;
+    const user_id = req.user.id;
+
+    if (!session_id) {
+      return res.status(400).json({ error: 'session_id is required' });
+    }
+
+    const sessionRes = await query(
+      "SELECT * FROM usb_sessions WHERE session_id = $1 AND user_id = $2 AND status = 'active'",
+      [session_id, user_id]
+    );
+
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid or inactive session' });
+    }
+
+    // Set HttpOnly cookie
+    res.cookie('usb_session_token', session_id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 12 * 60 * 60 * 1000 // 12 hours
+    });
+
+    res.json({ success: true, message: 'Browser linked to USB session securely' });
+  } catch (err) {
+    console.error('Link session error:', err);
+    res.status(500).json({ error: 'Failed to link session' });
+  }
+};
+
 module.exports = {
   generateSecurityKey,
   generateMyKey,
@@ -597,4 +635,5 @@ module.exports = {
   resetSerial,
   resetMySerial,
   listSessions,
+  linkSession,
 };

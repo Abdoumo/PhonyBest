@@ -30,6 +30,7 @@ import argparse
 import threading
 import subprocess
 from datetime import datetime
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # Fix Windows terminal encoding
 try:
@@ -209,6 +210,47 @@ def read_auth_file(drive_letter):
         print(f"  [AUTH] Error reading file: {e}")
         return None
 
+
+# ═══════════════════════════════════════════════════════════════════
+# Local Bridge Server
+# ═══════════════════════════════════════════════════════════════════
+
+class LocalBridgeHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass # Suppress logs
+        
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', '*')
+        self.end_headers()
+
+    def do_GET(self):
+        if self.path == '/get-session':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            global global_client
+            if global_client and global_client.authenticated and global_client.session_id:
+                response = {
+                    "active": True,
+                    "session_id": global_client.session_id
+                }
+            else:
+                response = {
+                    "active": False
+                }
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+def start_local_server():
+    server = HTTPServer(('127.0.0.1', 4005), LocalBridgeHandler)
+    server.serve_forever()
 
 # ═══════════════════════════════════════════════════════════════════
 # API Client
@@ -391,6 +433,12 @@ def main():
     print_status("Scanning for USB drives...\n", "USB")
     
     client = USBAuthClient(args.api_url)
+    global global_client
+    global_client = client
+    
+    # Start local server thread
+    threading.Thread(target=start_local_server, daemon=True).start()
+    print_status("Local bridge server running on port 4005", "INFO")
     
     try:
         while True:

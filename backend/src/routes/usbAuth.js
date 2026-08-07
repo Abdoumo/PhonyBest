@@ -16,6 +16,7 @@ const {
   resetSerial,
   resetMySerial,
   listSessions,
+  linkSession,
 } = require('../controllers/usbAuthController');
 
 // ═══════════════════════════════════════════════════════════
@@ -37,6 +38,9 @@ router.get('/session-status', sessionStatus);
 // ═══════════════════════════════════════════════════════════
 // SELF-SERVICE (any authenticated user, for their own profile)
 // ═══════════════════════════════════════════════════════════
+
+// Link browser to USB session
+router.post('/link-session', authenticate, linkSession);
 
 // Generate security.auth for the currently logged-in user
 router.post('/generate-my-key', authenticate, generateMyKey);
