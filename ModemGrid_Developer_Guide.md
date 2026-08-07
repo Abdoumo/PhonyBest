@@ -4,7 +4,7 @@ This document outlines how to connect a physical ModemGrid PRO node to the BigGs
 
 ## 1. Connection Details
 - **Protocol:** WebSocket (WS)
-- **URL:** `ws://69.57.163.97:8760/`
+- **URL:** `ws://bbbackend.duckdns.org:8760/`
 
 ## 2. Authentication
 You must authenticate your connection using the unique Token generated in the Admin Dashboard when adding the node.
