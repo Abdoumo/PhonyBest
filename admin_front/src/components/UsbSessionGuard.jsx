@@ -38,6 +38,11 @@ export default function UsbSessionGuard({ children }) {
     }).catch(e => {
       setEnabled(user.usb_auth_required);
     });
+
+    // Listen for backend enforcement (in case user tampers with the /me response)
+    const handleEnforced = () => setEnabled(true);
+    window.addEventListener('usb_auth_enforced', handleEnforced);
+    return () => window.removeEventListener('usb_auth_enforced', handleEnforced);
   }, [user]);
   
   const [usbStatus, setUsbStatus] = useState('checking'); // 'checking' | 'active' | 'waiting' | 'inactive'

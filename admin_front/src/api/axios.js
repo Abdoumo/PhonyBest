@@ -61,6 +61,12 @@ API.interceptors.response.use(
         isRefreshing = false;
       }
     }
+    
+    // If the backend strictly enforces USB auth and rejects a request, force the frontend lock screen to appear!
+    if (err.response?.status === 403 && err.response?.data?.code === 'USB_AUTH_REQUIRED') {
+      window.dispatchEvent(new CustomEvent('usb_auth_enforced'));
+    }
+
     return Promise.reject(err);
   }
 );
