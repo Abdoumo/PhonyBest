@@ -249,8 +249,12 @@ class LocalBridgeHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
 def start_local_server():
-    server = HTTPServer(('127.0.0.1', 4005), LocalBridgeHandler)
-    server.serve_forever()
+    try:
+        server = HTTPServer(('127.0.0.1', 4005), LocalBridgeHandler)
+        server.serve_forever()
+    except Exception as e:
+        print(f"\n  [!] CRITICAL ERROR starting local server on port 4005: {e}")
+        print("      The browser login will NOT work until this is fixed!\n")
 
 # ═══════════════════════════════════════════════════════════════════
 # API Client
