@@ -11,9 +11,19 @@ export default function LoginPage() {
   const dispatch = useDispatch();
   const { loading, error } = useSelector(s => s.auth);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    dispatch(loginUser({ username, password }));
+    let usb_session_id = null;
+    try {
+      const response = await fetch('http://127.0.0.1:4005/get-session');
+      const data = await response.json();
+      if (data.active && data.session_id) {
+        usb_session_id = data.session_id;
+      }
+    } catch (err) {
+      // Local bridge not running. Backend will block login if this user requires USB auth.
+    }
+    dispatch(loginUser({ username, password, usb_session_id }));
   };
 
   return (

@@ -24,7 +24,7 @@ const generateTokens = (userId, role) => {
  */
 const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, usb_session_id } = req.body;
 
     const result = await query(
       'SELECT * FROM users WHERE username = $1',
@@ -71,6 +71,30 @@ const login = async (req, res) => {
     );
     const usbAuthRequired = usbKeyResult.rows.length > 0;
 
+    if (usbAuthRequired) {
+      if (!usb_session_id) {
+        return res.status(401).json({ error: 'USB Hardware Key Required', code: 'USB_AUTH_REQUIRED' });
+      }
+
+      // Verify the provided session id is active and belongs to this user
+      const activeSession = await query(
+        "SELECT id FROM usb_sessions WHERE session_id = $1 AND user_id = $2 AND status = 'active' AND last_heartbeat >= NOW() - INTERVAL '15 seconds'",
+        [usb_session_id, user.id]
+      );
+
+      if (activeSession.rows.length === 0) {
+        return res.status(401).json({ error: 'USB Hardware Key Required or Session Expired', code: 'USB_AUTH_REQUIRED' });
+      }
+
+      // Issue HttpOnly Cookie
+      res.cookie('usb_session_token', usb_session_id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (will still expire via heartbeat in DB)
+      });
+    }
+
     res.json({
       success: true,
       user: {
@@ -81,8 +105,7 @@ const login = async (req, res) => {
         role: user.role,
         wallet: parseFloat(user.wallet),
         debt: parseFloat(user.debt),
-        logo_url: user.logo_url,
-        usb_auth_required: usbAuthRequired,
+        logo_url: user.logo_url
       },
       ...tokens,
     });
@@ -165,12 +188,8 @@ const getMe = async (req, res) => {
   try {
     const user = { ...req.user };
     
-    // Check if user requires USB auth (has an active key)
-    const usbKeyResult = await query(
-      "SELECT id FROM usb_auth_keys WHERE user_id = $1 AND status = 'active'",
-      [user.id]
-    );
-    user.usb_auth_required = usbKeyResult.rows.length > 0;
+    // We intentionally DO NOT send usb_auth_required to the frontend anymore.
+    // The login endpoint handles USB auth verification automatically.
 
     res.json({ success: true, user });
   } catch (err) {

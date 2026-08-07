@@ -62,9 +62,10 @@ API.interceptors.response.use(
       }
     }
     
-    // If the backend strictly enforces USB auth and rejects a request, force the frontend lock screen to appear!
+    // If the backend strictly enforces USB auth and rejects a request, force the frontend to logout
     if (err.response?.status === 403 && err.response?.data?.code === 'USB_AUTH_REQUIRED') {
-      window.dispatchEvent(new CustomEvent('usb_auth_enforced'));
+      localStorage.clear();
+      window.location.href = '/login';
     }
 
     return Promise.reject(err);
