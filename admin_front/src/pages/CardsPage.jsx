@@ -47,6 +47,20 @@ export default function CardsPage() {
   const [newCat, setNewCat] = useState({ id: '', name: '', color: '#6366f1', icon: '' });
   const [savingCats, setSavingCats] = useState(false);
 
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferForm, setTransferForm] = useState({ value: '', quantity: 1, client_id: '' });
+  const [usersList, setUsersList] = useState([]);
+
+  const loadUsers = async () => {
+    if (!isAdmin) return;
+    try {
+      const { data } = await API.get('/users');
+      if (data.users) {
+        setUsersList(data.users.filter(u => u.role !== 'ADMIN'));
+      }
+    } catch (e) { console.error('Error loading users:', e); }
+  };
+
   const loadCategories = async () => {
     try {
       const res = await API.get('/settings');
@@ -63,7 +77,7 @@ export default function CardsPage() {
     } catch (e) { console.error('Error loading categories:', e); }
   };
 
-  useEffect(() => { loadCategories(); }, []);
+  useEffect(() => { loadCategories(); loadUsers(); }, []);
 
   const loadCards = async () => {
     setLoading(true);
@@ -168,6 +182,27 @@ export default function CardsPage() {
     setSavingCats(false);
   };
 
+  const handleTransferCards = async () => {
+    if (!transferForm.value || transferForm.quantity < 1 || !transferForm.client_id) {
+      alert(t('يرجى ملء جميع الحقول'));
+      return;
+    }
+    try {
+      await API.post('/cards/transfer-bulk', { 
+        operator: selectedCat, 
+        value: transferForm.value, 
+        quantity: transferForm.quantity,
+        client_id: transferForm.client_id
+      });
+      alert(t('تم تحويل البطاقات بنجاح'));
+      setShowTransferModal(false);
+      setTransferForm({ value: '', quantity: 1, client_id: '' });
+      loadCards();
+    } catch (e) {
+      alert(e.response?.data?.error || t('حدث خطأ أثناء التحويل'));
+    }
+  };
+
   const handleAddCategory = () => {
     if (!newCat.id || !newCat.name || !newCat.icon) {
       alert(t('يرجى ملء جميع الحقول'));
@@ -220,6 +255,9 @@ export default function CardsPage() {
         {isAdmin ? (
           <div style={{ display: 'flex', gap: 8 }}>
             <input type="file" accept=".txt,.csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
+            <button className="btn btn-secondary" onClick={() => setShowTransferModal(true)}>
+              {t('إرسال للموزعين')}
+            </button>
             <button className="btn btn-secondary" onClick={() => setShowManageCatModal(true)}>
               <FiSettings size={14} style={{marginLeft:4}}/> {t('إدارة الفئات')}
             </button>
@@ -441,6 +479,55 @@ export default function CardsPage() {
             </div>
 
             <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleBuyCards} disabled={!buyForm.value || buyForm.quantity < 1}>{t('تأكيد الشراء')}</button>
+          </div>
+        </div>
+      )}
+
+      {showTransferModal && isAdmin && (
+        <div className="modal-overlay" onClick={() => setShowTransferModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">{t('إرسال بطاقات لموزع')} - {categories.find(c => c.id === selectedCat)?.name}</h3>
+              <button className="modal-close" onClick={() => setShowTransferModal(false)}>×</button>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">{t('الموزع المستلم')}</label>
+              <select className="form-select" value={transferForm.client_id} onChange={e => setTransferForm({...transferForm, client_id: e.target.value})}>
+                <option value="">-- {t('اختر موزعاً')} --</option>
+                {usersList.map(u => (
+                  <option key={u.id} value={u.id}>{u.full_name || u.username} ({u.role})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">{t('فئة البطاقة (السعر)')}</label>
+              <select className="form-select" value={transferForm.value} onChange={e => setTransferForm({...transferForm, value: e.target.value})}>
+                <option value="">-- {t('اختر الفئة')} --</option>
+                {availableStoreValues.map(v => (
+                  <option key={v.value} value={v.value}>
+                    {v.value} {t('د.ج')} ({t('متاح في مخزونك')}: {v.available_count})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">{t('الكمية (عدد البطاقات)')}</label>
+              <input className="form-input" type="number" min="1" value={transferForm.quantity} 
+                onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                onChange={e => setTransferForm({...transferForm, quantity: Number(e.target.value)})} />
+            </div>
+
+            <div style={{ padding: 12, background: 'var(--bg-input)', borderRadius: 8, marginBottom: 16, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
+              <span>{t('القيمة الإجمالية للبطاقات')}:</span>
+              <strong style={{ color: 'var(--primary)' }}>
+                {transferForm.value ? (Number(transferForm.value) * transferForm.quantity).toLocaleString() : 0} {t('د.ج')}
+              </strong>
+            </div>
+
+            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleTransferCards} disabled={!transferForm.value || transferForm.quantity < 1 || !transferForm.client_id}>{t('تأكيد الإرسال')}</button>
           </div>
         </div>
       )}

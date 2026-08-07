@@ -1,10 +1,11 @@
 const router = require('express').Router();
-const { uploadCards, getStock, sellCard, markCardUsed, sendSpecificCard, getCardTransactions, buyCards } = require('../controllers/cardsController');
+const { uploadCards, getStock, sellCard, markCardUsed, sendSpecificCard, getCardTransactions, buyCards, transferBulkCards } = require('../controllers/cardsController');
 const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 router.post('/upload', authorize('ADMIN','SUPER_GRO'), uploadCards);
 router.post('/buy', buyCards);
+router.post('/transfer-bulk', authorize('ADMIN', 'SUPER_GRO'), transferBulkCards);
 router.get('/stock', getStock);
 router.get('/transactions', authorize('ADMIN','SUPER_GRO'), getCardTransactions);
 router.post('/sell', sellCard);

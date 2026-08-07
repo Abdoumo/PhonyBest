@@ -166,6 +166,43 @@ const buyCards = async (req, res) => {
   }
 };
 
+const transferBulkCards = async (req, res) => {
+  try {
+    const { operator, value, quantity, client_id } = req.body;
+    const qty = parseInt(quantity);
+    
+    if (!qty || qty <= 0 || !value || value <= 0 || !client_id) {
+      return res.status(400).json({ error: 'بيانات غير صالحة' });
+    }
+
+    const cards = await query(
+      `SELECT id FROM cards WHERE operator=$1 AND value=$2 AND status='available' AND uploaded_by=$3 LIMIT $4`,
+      [operator, value, req.user.id, qty]
+    );
+
+    if (cards.rows.length < qty) {
+      return res.status(400).json({ error: 'لا يوجد عدد كافٍ من البطاقات في مخزونك' });
+    }
+
+    const cardIds = cards.rows.map(c => c.id);
+
+    await query(`UPDATE cards SET uploaded_by=$1 WHERE id = ANY($2::int[])`, [client_id, cardIds]);
+    
+    // Log the transaction
+    const totalValue = parseFloat(value) * qty;
+    await query(
+      `INSERT INTO transactions (type, operator, amount, status, client_id, processed_by, metadata) 
+       VALUES ('transfer_cards', $1, $2, 'success', $3, $4, $5)`,
+      [operator, totalValue, client_id, req.user.id, JSON.stringify({ quantity: qty, value: value })]
+    );
+
+    res.json({ success: true, message: 'تم تحويل البطاقات بنجاح' });
+  } catch (err) {
+    console.error('Transfer bulk cards error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 const sellCard = async (req, res) => {
   try {
     const { operator, value, client_id } = req.body;
@@ -251,4 +288,4 @@ const getCardTransactions = async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 };
 
-module.exports = { uploadCards, getStock, sellCard, markCardUsed, sendSpecificCard, getCardTransactions, buyCards };
+module.exports = { uploadCards, getStock, sellCard, markCardUsed, sendSpecificCard, getCardTransactions, buyCards, transferBulkCards };
