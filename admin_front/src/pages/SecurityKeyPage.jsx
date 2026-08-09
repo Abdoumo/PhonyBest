@@ -33,18 +33,24 @@ export default function SecurityKeyPage() {
     setLoading(true);
     try {
       if (isAdmin) {
-        const [keysRes, sessionsRes, usersRes, myKeyRes, mySessRes] = await Promise.all([
+        const results = await Promise.allSettled([
           API.get('/usb-auth/keys'),
           API.get('/usb-auth/sessions'),
           API.get('/users'),
           API.get('/usb-auth/my-key'),
           API.get('/usb-auth/my-session'),
         ]);
-        setKeys(keysRes.data.keys || []);
-        setSessions(sessionsRes.data.sessions || []);
-        setUsers(usersRes.data.users || []);
-        setMyKey(myKeyRes.data.key);
-        setMySessions(mySessRes.data.sessions || []);
+        
+        if (results[0].status === 'fulfilled') setKeys(results[0].value.data.keys || []);
+        if (results[1].status === 'fulfilled') setSessions(results[1].value.data.sessions || []);
+        if (results[2].status === 'fulfilled') setUsers(results[2].value.data.users || []);
+        if (results[3].status === 'fulfilled') setMyKey(results[3].value.data.key);
+        if (results[4].status === 'fulfilled') setMySessions(results[4].value.data.sessions || []);
+        
+        // Log errors for debugging
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') console.error(`Endpoint ${i} failed:`, r.reason);
+        });
       } else {
         const [keyRes, sessRes] = await Promise.all([
           API.get('/usb-auth/my-key'),
