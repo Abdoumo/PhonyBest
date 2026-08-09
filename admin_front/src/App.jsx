@@ -7,6 +7,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 
 import Layout from './layouts/Layout';
 import LoginPage from './pages/LoginPage';
+import VerifyUsbPage from './pages/VerifyUsbPage';
 import DashboardPage from './pages/DashboardPage';
 import FlexyPage from './pages/FlexyPage';
 import IdoomPage from './pages/IdoomPage';
@@ -46,6 +47,7 @@ function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+        <Route path="/verify-usb" element={user ? <Navigate to="/dashboard" replace /> : <VerifyUsbPage />} />
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />

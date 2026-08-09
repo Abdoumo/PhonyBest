@@ -8,7 +8,10 @@ export const loginUser = createAsyncThunk('auth/login', async (creds, { rejectWi
     localStorage.setItem('refreshToken', data.refreshToken);
     return data.user;
   } catch (err) {
-    return rejectWithValue(err.response?.data?.error || 'Login failed');
+    return rejectWithValue({
+      message: err.response?.data?.error || 'Login failed',
+      code: err.response?.data?.code
+    });
   }
 });
 
@@ -42,7 +45,7 @@ const authSlice = createSlice({
   extraReducers: (b) => {
     b.addCase(loginUser.pending, (s) => { s.loading = true; s.error = null; });
     b.addCase(loginUser.fulfilled, (s, a) => { s.loading = false; s.user = a.payload; s.initialized = true; });
-    b.addCase(loginUser.rejected, (s, a) => { s.loading = false; s.error = a.payload; });
+    b.addCase(loginUser.rejected, (s, a) => { s.loading = false; s.error = a.payload?.message || 'Login failed'; });
     b.addCase(fetchMe.pending, (s) => { s.loading = true; });
     b.addCase(fetchMe.fulfilled, (s, a) => { s.loading = false; s.user = a.payload; s.initialized = true; });
     b.addCase(fetchMe.rejected, (s) => { s.loading = false; s.user = null; s.initialized = true; });

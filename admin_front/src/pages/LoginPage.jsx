@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { loginUser, clearError } from '../redux/authSlice';
 import { FiUser, FiLock, FiZap } from 'react-icons/fi';
 
@@ -9,26 +10,19 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { loading, error } = useSelector(s => s.auth);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    let usb_session_id = null;
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1000);
-      const response = await fetch('http://127.0.0.1:4005/get-session', { signal: controller.signal }).catch(() => null);
-      clearTimeout(timeoutId);
-      if (response && response.ok) {
-        const data = await response.json();
-        if (data?.active && data?.session_id) {
-          usb_session_id = data.session_id;
-        }
-      }
+      await dispatch(loginUser({ username, password })).unwrap();
+      // If success, AppRoutes will automatically redirect to /dashboard
     } catch (err) {
-      // Silently ignore: USB auth script is likely not running or key removed
+      if (err?.code === 'USB_AUTH_REQUIRED') {
+        navigate('/verify-usb', { state: { username, password } });
+      }
     }
-    dispatch(loginUser({ username, password, usb_session_id }));
   };
 
   return (
