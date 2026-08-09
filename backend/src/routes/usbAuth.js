@@ -12,6 +12,7 @@ const {
   sessionStatus,
   listKeys,
   revokeKey,
+  toggleKeyStatus,
   revokeMyKey,
   resetSerial,
   resetMySerial,
@@ -74,6 +75,9 @@ router.get('/keys', authenticate, authorize('ADMIN'), listKeys);
 
 // Revoke a USB key
 router.post('/revoke', authenticate, authorize('ADMIN'), revokeKey);
+
+// Toggle a USB key status (activate/deactivate)
+router.post('/toggle-status', authenticate, authorize('ADMIN'), toggleKeyStatus);
 
 // Reset USB serial binding
 router.post('/reset-serial', authenticate, authorize('ADMIN'), resetSerial);

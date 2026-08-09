@@ -486,6 +486,34 @@ const revokeKey = async (req, res) => {
 };
 
 /**
+ * Toggle a USB auth key status (activate/deactivate) (admin)
+ * POST /api/v1/usb-auth/toggle-status
+ * Body: { user_id }
+ */
+const toggleKeyStatus = async (req, res) => {
+  try {
+    const { user_id } = req.body;
+    if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+
+    const keyRes = await query("SELECT status FROM usb_auth_keys WHERE user_id = $1", [user_id]);
+    if (keyRes.rows.length === 0) return res.status(404).json({ error: 'Key not found' });
+    
+    const newStatus = keyRes.rows[0].status === 'active' ? 'revoked' : 'active';
+    
+    await query("UPDATE usb_auth_keys SET status = $1, updated_at = NOW() WHERE user_id = $2", [newStatus, user_id]);
+    
+    if (newStatus === 'revoked') {
+      await query("UPDATE usb_sessions SET status = 'expired', ended_at = NOW() WHERE user_id = $1 AND status = 'active'", [user_id]);
+    }
+    
+    res.json({ success: true, message: `Key ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`, status: newStatus });
+  } catch (err) {
+    console.error('Toggle status error:', err);
+    res.status(500).json({ error: 'Failed to toggle status' });
+  }
+};
+
+/**
  * Revoke own USB auth key (self-service)
  * POST /api/v1/usb-auth/revoke-my-key
  */
@@ -659,6 +687,7 @@ module.exports = {
   sessionStatus,
   listKeys,
   revokeKey,
+  toggleKeyStatus,
   revokeMyKey,
   resetSerial,
   resetMySerial,

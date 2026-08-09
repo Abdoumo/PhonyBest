@@ -131,14 +131,19 @@ export default function SecurityKeyPage() {
     }
   };
 
-  const handleRevoke = async (userId) => {
-    if (!window.confirm(t('هل أنت متأكد من إلغاء هذا المفتاح؟'))) return;
+  const handleToggleStatus = async (userId, currentStatus) => {
+    const isActivating = currentStatus !== 'active';
+    const msg = isActivating 
+      ? t('هل أنت متأكد من إعادة تفعيل هذا المفتاح؟') 
+      : t('هل أنت متأكد من إيقاف/إلغاء هذا المفتاح؟');
+      
+    if (!window.confirm(msg)) return;
     try {
-      await API.post('/usb-auth/revoke', { user_id: userId });
-      showToast(t('تم إلغاء المفتاح بنجاح'));
+      await API.post('/usb-auth/toggle-status', { user_id: userId });
+      showToast(isActivating ? t('تم تفعيل المفتاح بنجاح') : t('تم إيقاف المفتاح بنجاح'));
       fetchData();
     } catch (err) {
-      showToast(err.response?.data?.error || t('فشل في الإلغاء'), 'error');
+      showToast(err.response?.data?.error || t('فشل في العملية'), 'error');
     }
   };
 
@@ -326,7 +331,9 @@ export default function SecurityKeyPage() {
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
                         {key.usb_serial && <button className="usb-action-btn reset" onClick={() => handleResetSerial(key.user_id)} title={t('إعادة تعيين')}><FiRefreshCw size={14} /></button>}
-                        {key.status === 'active' && <button className="usb-action-btn danger" onClick={() => handleRevoke(key.user_id)} title={t('إلغاء')}><FiTrash2 size={14} /></button>}
+                        <button className={`usb-action-btn ${key.status === 'active' ? 'danger' : 'reset'}`} onClick={() => handleToggleStatus(key.user_id, key.status)} title={key.status === 'active' ? t('إلغاء') : t('تفعيل')}>
+                          {key.status === 'active' ? <FiTrash2 size={14} /> : <FiCheckCircle size={14} />}
+                        </button>
                         <button className="usb-action-btn download" onClick={async () => { try { const res = await API.post('/usb-auth/generate-key', { user_id: key.user_id }); if (res.data.success) { downloadFile(res.data.file_content); showToast(t('تم تنزيل المفتاح')); fetchData(); } } catch (err) { showToast(err.response?.data?.error || t('فشل'), 'error'); } }} title={t('تنزيل')}><FiDownload size={14} /></button>
                       </div>
                     </td>
