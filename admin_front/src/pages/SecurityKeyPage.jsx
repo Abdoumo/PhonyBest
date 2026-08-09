@@ -10,9 +10,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 export default function SecurityKeyPage() {
   const { t } = useLanguage();
-  const { user } = useSelector(s => s.auth);
-  const isAdmin = user?.role === 'ADMIN';
-
+  const [isAdmin, setIsAdmin] = useState(false);
   const [keys, setKeys] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [myKey, setMyKey] = useState(null);
@@ -35,20 +33,18 @@ export default function SecurityKeyPage() {
       const res = await API.get('/usb-auth/dashboard');
       const data = res.data.data;
       
+      setIsAdmin(!!data.isAdmin);
       setMyKey(data.myKey);
       setMySessions(data.mySessions || []);
-      
-      if (isAdmin) {
-        setKeys(data.keys || []);
-        setSessions(data.sessions || []);
-        setUsers(data.users || []);
-      }
+      if (data.keys) setKeys(data.keys);
+      if (data.sessions) setSessions(data.sessions);
+      if (data.users) setUsers(data.users);
     } catch (err) {
       console.error('Failed to fetch data:', err);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -58,14 +54,13 @@ export default function SecurityKeyPage() {
         const res = await API.get('/usb-auth/dashboard');
         const data = res.data.data;
         
+        setIsAdmin(!!data.isAdmin);
         setMySessions(data.mySessions || []);
-        if (isAdmin) {
-          setSessions(data.sessions || []);
-        }
+        if (data.sessions) setSessions(data.sessions);
       } catch (err) { /* silent */ }
     }, 5000);
     return () => clearInterval(interval);
-  }, [isAdmin]);
+  }, []);
 
   const downloadFile = (fileContent) => {
     const blob = new Blob([fileContent], { type: 'application/octet-stream' });

@@ -603,6 +603,7 @@ const getDashboardData = async (req, res) => {
     `, [user.id]);
 
     let data = {
+      isAdmin,
       myKey: myKeyResult.rows.length > 0 ? myKeyResult.rows[0] : null,
       mySessions: mySessionResult.rows,
     };
