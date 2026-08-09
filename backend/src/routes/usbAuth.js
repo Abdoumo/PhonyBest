@@ -15,7 +15,8 @@ const {
   revokeMyKey,
   resetSerial,
   resetMySerial,
-  listSessions
+  listSessions,
+  getDashboardData
 } = require('../controllers/usbAuthController');
 
 // ═══════════════════════════════════════════════════════════
@@ -48,6 +49,9 @@ router.get('/my-key', authenticate, getMyKey);
 
 // Get own session history
 router.get('/my-session', authenticate, getMySession);
+
+// Get all dashboard data
+router.get('/dashboard', authenticate, getDashboardData);
 
 // Reset own USB serial
 router.post('/reset-my-serial', authenticate, resetMySerial);

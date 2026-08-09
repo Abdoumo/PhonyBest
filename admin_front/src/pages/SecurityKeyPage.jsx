@@ -32,32 +32,16 @@ export default function SecurityKeyPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const res = await API.get('/usb-auth/dashboard');
+      const data = res.data.data;
+      
+      setMyKey(data.myKey);
+      setMySessions(data.mySessions || []);
+      
       if (isAdmin) {
-        const results = await Promise.allSettled([
-          API.get('/usb-auth/keys'),
-          API.get('/usb-auth/sessions'),
-          API.get('/users'),
-          API.get('/usb-auth/my-key'),
-          API.get('/usb-auth/my-session'),
-        ]);
-        
-        if (results[0].status === 'fulfilled') setKeys(results[0].value.data.keys || []);
-        if (results[1].status === 'fulfilled') setSessions(results[1].value.data.sessions || []);
-        if (results[2].status === 'fulfilled') setUsers(results[2].value.data.users || []);
-        if (results[3].status === 'fulfilled') setMyKey(results[3].value.data.key);
-        if (results[4].status === 'fulfilled') setMySessions(results[4].value.data.sessions || []);
-        
-        // Log errors for debugging
-        results.forEach((r, i) => {
-          if (r.status === 'rejected') console.error(`Endpoint ${i} failed:`, r.reason);
-        });
-      } else {
-        const [keyRes, sessRes] = await Promise.all([
-          API.get('/usb-auth/my-key'),
-          API.get('/usb-auth/my-session'),
-        ]);
-        setMyKey(keyRes.data.key);
-        setMySessions(sessRes.data.sessions || []);
+        setKeys(data.keys || []);
+        setSessions(data.sessions || []);
+        setUsers(data.users || []);
       }
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -71,16 +55,12 @@ export default function SecurityKeyPage() {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
+        const res = await API.get('/usb-auth/dashboard');
+        const data = res.data.data;
+        
+        setMySessions(data.mySessions || []);
         if (isAdmin) {
-          const [resGlob, resMy] = await Promise.all([
-            API.get('/usb-auth/sessions'),
-            API.get('/usb-auth/my-session')
-          ]);
-          setSessions(resGlob.data.sessions || []);
-          setMySessions(resMy.data.sessions || []);
-        } else {
-          const res = await API.get('/usb-auth/my-session');
-          setMySessions(res.data.sessions || []);
+          setSessions(data.sessions || []);
         }
       } catch (err) { /* silent */ }
     }, 5000);

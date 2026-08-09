@@ -581,6 +581,70 @@ const listSessions = async (req, res) => {
   }
 };
 
+/**
+ * Get all dashboard data in a single request
+ * GET /api/v1/usb-auth/dashboard
+ */
+const getDashboardData = async (req, res) => {
+  try {
+    const user = req.user;
+    const isAdmin = user.role === 'ADMIN';
+
+    // 1. My Key
+    const myKeyResult = await query(`
+      SELECT k.id, k.user_id, k.usb_serial, k.status, k.created_at, k.updated_at
+      FROM usb_auth_keys k WHERE k.user_id = $1
+    `, [user.id]);
+    
+    // 2. My Sessions
+    const mySessionResult = await query(`
+      SELECT session_id, usb_serial, status, last_heartbeat, created_at, ended_at
+      FROM usb_sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50
+    `, [user.id]);
+
+    let data = {
+      myKey: myKeyResult.rows.length > 0 ? myKeyResult.rows[0] : null,
+      mySessions: mySessionResult.rows,
+    };
+
+    if (isAdmin) {
+      // 3. All Keys
+      const keysResult = await query(`
+        SELECT k.id, k.user_id, u.username, u.full_name, u.role, k.usb_serial, k.status, k.created_at, k.updated_at
+        FROM usb_auth_keys k JOIN users u ON u.id = k.user_id ORDER BY k.created_at DESC
+      `);
+      
+      // 4. All Sessions
+      const sessionsResult = await query(`
+        SELECT s.session_id, s.user_id, u.username, u.full_name, s.usb_serial, s.status, s.last_heartbeat, s.created_at, s.ended_at
+        FROM usb_sessions s JOIN users u ON u.id = s.user_id ORDER BY s.created_at DESC LIMIT 100
+      `);
+
+      // 5. All Users (for generate select)
+      const usersResult = await query(`
+        SELECT id, username, full_name, role FROM users ORDER BY username ASC
+      `);
+
+      const now = Date.now();
+      data.sessions = sessionsResult.rows.map(s => {
+        if (s.status === 'active') {
+          const lastHb = new Date(s.last_heartbeat).getTime();
+          if (now - lastHb > SESSION_TIMEOUT_MS) s.status = 'expired (stale)';
+        }
+        return s;
+      });
+
+      data.keys = keysResult.rows;
+      data.users = usersResult.rows;
+    }
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('Get dashboard data error:', err);
+    res.status(500).json({ error: 'Failed to fetch dashboard data' });
+  }
+};
+
 
 module.exports = {
   generateSecurityKey,
@@ -598,4 +662,5 @@ module.exports = {
   resetSerial,
   resetMySerial,
   listSessions,
+  getDashboardData,
 };
