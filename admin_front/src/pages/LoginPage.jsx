@@ -15,17 +15,18 @@ export default function LoginPage() {
     e.preventDefault();
     let usb_session_id = null;
     try {
-      console.log("Checking local Python bridge for USB...");
-      const response = await fetch('http://127.0.0.1:4005/get-session');
-      const data = await response.json();
-      console.log("Bridge response:", data);
-      if (data.active && data.session_id) {
-        usb_session_id = data.session_id;
-      } else {
-        console.warn("Bridge says USB is NOT active or missing session_id.");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1000);
+      const response = await fetch('http://127.0.0.1:4005/get-session', { signal: controller.signal }).catch(() => null);
+      clearTimeout(timeoutId);
+      if (response && response.ok) {
+        const data = await response.json();
+        if (data?.active && data?.session_id) {
+          usb_session_id = data.session_id;
+        }
       }
     } catch (err) {
-      console.error("Failed to fetch from local bridge. Is the Python script running?", err);
+      // Silently ignore: USB auth script is likely not running or key removed
     }
     dispatch(loginUser({ username, password, usb_session_id }));
   };
