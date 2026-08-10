@@ -55,6 +55,11 @@ const transfer = async (req, res) => {
   try {
     const { to_user_id, username, amount, notes } = req.body;
     let recipientId = to_user_id;
+    
+    if (recipientId) {
+      recipientId = parseInt(recipientId, 10);
+      if (isNaN(recipientId)) return res.status(400).json({ error: 'معرف المستلم غير صالح' });
+    }
 
     if (!recipientId && username) {
       const userRes = await query('SELECT id FROM users WHERE username = $1', [username]);

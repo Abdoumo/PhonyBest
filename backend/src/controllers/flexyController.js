@@ -16,7 +16,7 @@ const sendFlexy = async (req, res) => {
 
     // Validate operator
     const validOperators = ['mobilis', 'djezzy', 'ooredoo'];
-    if (!validOperators.includes(operator.toLowerCase())) {
+    if (!operator || !validOperators.includes(operator.toLowerCase())) {
       return res.status(400).json({ error: 'Invalid operator' });
     }
 

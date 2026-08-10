@@ -115,6 +115,21 @@ const createTables = async () => {
       );
     `);
 
+    // Commission offers table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS commission_offers (
+        id SERIAL PRIMARY KEY,
+        role VARCHAR(20) NOT NULL,
+        service VARCHAR(30) NOT NULL,
+        operator VARCHAR(20),
+        base_amount DECIMAL(10,2) DEFAULT 0.00,
+        admin_cost DECIMAL(10,2) DEFAULT 0.00,
+        client_price DECIMAL(10,2) DEFAULT 0.00,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(role, service, operator)
+      );
+    `);
+
     // Transfers table
     await client.query(`
       CREATE TABLE IF NOT EXISTS transfers (
