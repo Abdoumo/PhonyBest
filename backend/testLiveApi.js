@@ -48,19 +48,19 @@ async function testLiveApi() {
     }
     console.log('');
 
-    // 4. Test /flexy/send (without operator)
-    console.log('4. Testing /flexy/send (Missing operator)...');
+    // 4. Test /flexy/send (With operator)
+    console.log('4. Testing /flexy/send (With mobilis operator)...');
     const flexyRes = await fetch(`${BASE_URL}/flexy/send`, {
       method: 'POST',
       headers: authHeaders,
-      body: JSON.stringify({ number: '0666666666', amount: 100 })
+      body: JSON.stringify({ number: '0666666666', amount: 100, operator: 'mobilis' })
     });
-    if (flexyRes.status === 400) {
-      console.log('✅ POST /flexy/send correctly returned 400 Bad Request');
-    } else if (flexyRes.status === 500) {
-      console.log('❌ POST /flexy/send still returns 500 Server Error (Not Fixed on server)');
+    if (flexyRes.status === 200) {
+      console.log('✅ POST /flexy/send is WORKING (Status 200)');
     } else {
-      console.log(`⚠️ POST /flexy/send returned Status ${flexyRes.status}`);
+      console.log(`❌ POST /flexy/send FAILED with status ${flexyRes.status}`);
+      const body = await flexyRes.text();
+      console.log(`   Response: ${body}`);
     }
     console.log('');
 

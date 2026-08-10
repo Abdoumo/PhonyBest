@@ -15,20 +15,28 @@ ws.on('open', function open() {
         type: "status",
         pools: [
             {
+                pool_id: 1,
                 operator: "mobilis",
                 balance: 150000,
-                online_count: 1
+                online_count: 1,
+                total_balance: 150000,
+                dongle_count: 1
             }
         ],
         dongles: [
             {
                 modem_id: "MODEM_TEST_01",
+                dongle_id: "MODEM_TEST_01",
                 operator: "mobilis",
                 signal: 85,
                 balance: 50000,
-                status: "idle"
+                status: "idle",
+                online: true,
+                pool_ids: [1]
             }
-        ]
+        ],
+        dongle_count: 1,
+        online_count: 1
     };
 
     console.log('📤 Sending status update...');
