@@ -21,7 +21,7 @@ const createTables = async () => {
         full_name VARCHAR(100),
         phone VARCHAR(20),
         wilaya VARCHAR(100),
-        role VARCHAR(20) NOT NULL DEFAULT 'CLIENT' CHECK (role IN ('ADMIN','SUPER_GRO','GRO','COMMERCANT','CLIENT')),
+        role VARCHAR(20) NOT NULL DEFAULT 'CLIENT' CHECK (role IN ('ADMIN','SUPER_GRO','GRO','GROSIST','COMMERCANT','CLIENT')),
         usb_key VARCHAR(255),
         wallet DECIMAL(12,2) DEFAULT 0.00,
         debt DECIMAL(12,2) DEFAULT 0.00,
@@ -383,6 +383,8 @@ const createTables = async () => {
 
     // Database migrations for existing setups
     try {
+      await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
+      await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN','SUPER_GRO','GRO','GROSIST','COMMERCANT','CLIENT'))`);
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)`);
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS wilaya VARCHAR(100)`);
       console.log('✅ Migrations applied successfully');
