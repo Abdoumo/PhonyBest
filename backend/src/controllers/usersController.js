@@ -131,7 +131,7 @@ const createUser = async (req, res) => {
     res.status(201).json({ success: true, user: result.rows[0] });
   } catch (err) {
     console.error('Create user error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 };
 
@@ -203,7 +203,7 @@ const updateUser = async (req, res) => {
     res.json({ success: true, user: result.rows[0] });
   } catch (err) {
     console.error('Update user error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 };
 
