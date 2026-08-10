@@ -58,7 +58,7 @@ const getUsers = async (req, res) => {
     });
   } catch (err) {
     console.error('Get users error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 };
 
@@ -87,7 +87,7 @@ const getUser = async (req, res) => {
     }
     res.json({ success: true, user: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 };
 
