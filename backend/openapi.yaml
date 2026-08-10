@@ -7,6 +7,12 @@ servers:
   - url: http://localhost:5000/api/v1
     description: Development server
 paths:
+  /api/v1/debug-usb:
+    get:
+      description: ''
+      responses:
+        '200':
+          description: OK
   /api/health:
     get:
       description: ''
@@ -39,6 +45,8 @@ paths:
                 username:
                   example: any
                 password:
+                  example: any
+                usb_session_id:
                   example: any
   /api/v1/auth/refresh:
     post:
@@ -377,6 +385,8 @@ paths:
                   example: any
                 offer:
                   example: any
+                dongle_id:
+                  example: any
                 variables:
                   example: any
   /api/v1/flexy/history:
@@ -443,6 +453,19 @@ paths:
               properties:
                 operations:
                   example: any
+  /api/v1/flexy/modems:
+    get:
+      description: ''
+      parameters:
+        - name: authorization
+          in: header
+          schema:
+            type: string
+      responses:
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
   /api/v1/idoom/recharge:
     post:
       description: ''
@@ -560,6 +583,39 @@ paths:
                 value:
                   example: any
                 quantity:
+                  example: any
+  /api/v1/cards/transfer-bulk:
+    post:
+      description: ''
+      parameters:
+        - name: authorization
+          in: header
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operator:
+                  example: any
+                value:
+                  example: any
+                quantity:
+                  example: any
+                client_id:
                   example: any
   /api/v1/cards/stock:
     get:
@@ -1296,6 +1352,23 @@ paths:
           description: Forbidden
         '500':
           description: Internal Server Error
+  /api/v1/usb-auth/dashboard:
+    get:
+      description: ''
+      parameters:
+        - name: authorization
+          in: header
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
   /api/v1/usb-auth/reset-my-serial:
     post:
       description: ''
@@ -1417,6 +1490,35 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden
+        '500':
+          description: Internal Server Error
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  example: any
+  /api/v1/usb-auth/toggle-status:
+    post:
+      description: ''
+      parameters:
+        - name: authorization
+          in: header
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
       requestBody:
