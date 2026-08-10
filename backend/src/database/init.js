@@ -63,7 +63,7 @@ const createTables = async () => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
-        type VARCHAR(30) NOT NULL CHECK (type IN ('flexy','idoom','card','wallet_add','wallet_remove','transfer','debt')),
+        type VARCHAR(30) NOT NULL CHECK (type IN ('flexy','idoom','card','buy_cards','transfer_cards','wallet_add','wallet_remove','transfer','debt')),
         operator VARCHAR(20),
         phone_number VARCHAR(20),
         amount DECIMAL(12,2) NOT NULL,
@@ -385,6 +385,8 @@ const createTables = async () => {
     try {
       await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
       await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN','SUPER_GRO','GRO','GROSIST','COMMERCANT','CLIENT'))`);
+      await client.query(`ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_type_check`);
+      await client.query(`ALTER TABLE transactions ADD CONSTRAINT transactions_type_check CHECK (type IN ('flexy','idoom','card','buy_cards','transfer_cards','wallet_add','wallet_remove','transfer','debt'))`);
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)`);
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS wilaya VARCHAR(100)`);
       console.log('✅ Migrations applied successfully');
