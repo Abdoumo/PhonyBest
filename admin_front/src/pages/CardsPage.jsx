@@ -23,6 +23,7 @@ export default function CardsPage() {
   const [selectedCat, setSelectedCat] = useState(defaultCategories[0].id);
   const [cards, setCards] = useState([]);
   const [storeSummary, setStoreSummary] = useState([]);
+  const [myStockSummary, setMyStockSummary] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -90,10 +91,12 @@ export default function CardsPage() {
       const { data } = await API.get(url);
       setCards(data.cards || []);
       setStoreSummary(data.store_summary || []);
+      setMyStockSummary(data.my_stock_summary || []);
       if (data.pagination) setPagination(data.pagination);
     } catch (err) {
       setCards([]);
       setStoreSummary([]);
+      setMyStockSummary([]);
     }
     setLoading(false);
   };
@@ -235,6 +238,7 @@ export default function CardsPage() {
   });
 
   const availableStoreValues = storeSummary.filter(s => s.operator === selectedCat);
+  const myAvailableValues = myStockSummary.filter(s => s.operator === selectedCat);
 
   const getCatSummary = () => {
     if (isAdmin) {
@@ -505,7 +509,7 @@ export default function CardsPage() {
               <label className="form-label">{t('فئة البطاقة (السعر)')}</label>
               <select className="form-select" value={transferForm.value} onChange={e => setTransferForm({...transferForm, value: e.target.value})}>
                 <option value="">-- {t('اختر الفئة')} --</option>
-                {availableStoreValues.map(v => (
+                {myAvailableValues.map(v => (
                   <option key={v.value} value={v.value}>
                     {v.value} {t('د.ج')} ({t('متاح في مخزونك')}: {v.available_count})
                   </option>

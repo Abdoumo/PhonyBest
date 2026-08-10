@@ -98,7 +98,16 @@ const getStock = async (req, res) => {
       store_summary = storeRes.rows;
     }
 
-    res.json({ success: true, cards: result.rows, summary: summary.rows, store_summary, pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / limit) } });
+    // Personal stock summary for transferring
+    const myStockRes = await query(`
+      SELECT operator, value, COUNT(*) as available_count 
+      FROM cards 
+      WHERE status='available' AND uploaded_by = $1 
+      GROUP BY operator, value
+    `, [req.user.id]);
+    const my_stock_summary = myStockRes.rows;
+
+    res.json({ success: true, cards: result.rows, summary: summary.rows, store_summary, my_stock_summary, pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / limit) } });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 };
 
