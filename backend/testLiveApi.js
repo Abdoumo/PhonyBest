@@ -64,7 +64,7 @@ async function testLiveApi() {
     }
     console.log('');
 
-    // 5. Test /wallet/transfer (invalid ID)
+    // 5. Test /wallet/transfer (Invalid ID)...
     console.log('5. Testing /wallet/transfer (Invalid ID)...');
     const walletRes = await fetch(`${BASE_URL}/wallet/transfer`, {
       method: 'POST',
@@ -77,6 +77,29 @@ async function testLiveApi() {
       console.log('❌ POST /wallet/transfer still returns 500 Server Error (Not Fixed on server)');
     } else {
       console.log(`⚠️ POST /wallet/transfer returned Status ${walletRes.status}`);
+    }
+    console.log('');
+
+    // 6. Test POST /users (Create client)
+    console.log('6. Testing POST /users (Client creation)...');
+    const createRes = await fetch(`${BASE_URL}/users`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ 
+        username: 'testclient123', 
+        email: 'test@example.com', 
+        password: 'password123', 
+        full_name: 'Test Client', 
+        phone: '0555555555', 
+        role: 'CLIENT' 
+      })
+    });
+    if (createRes.status === 201) {
+      console.log('✅ POST /users is WORKING (Status 201)');
+    } else {
+      console.log(`❌ POST /users FAILED with status ${createRes.status}`);
+      const body = await createRes.text();
+      console.log(`   Response: ${body}`);
     }
     
   } catch (err) {
