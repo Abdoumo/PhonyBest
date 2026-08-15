@@ -46,17 +46,19 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
       p.api_names && p.api_names.includes(apiName)
     );
 
-    if (matchingPools.length === 0) return null;
-
-    // Pick the pool with the highest balance that has enough for the amount
-    const best = matchingPools.find(p => parseFloat(p.total_balance) >= amount) || matchingPools[0];
-    return {
-      nodeId: best.node_id,
-      apiName: apiName,
-      poolName: best.name,
-      nodeName: best.node_name,
-      totalBalance: parseFloat(best.total_balance),
-    };
+    if (matchingPools.length > 0) {
+      // Pick the pool with the highest balance that has enough for the amount
+      const best = matchingPools.find(p => parseFloat(p.total_balance) >= amount) || matchingPools[0];
+      return {
+        nodeId: best.node_id,
+        apiName: apiName,
+        poolName: best.name,
+        nodeName: best.node_name,
+        totalBalance: parseFloat(best.total_balance),
+      };
+    }
+    // If no pool matches the requested API name exactly, we do NOT return null.
+    // Instead, we proceed with operator-based routing and assume 'apiName' is just an offer parameter.
   }
 
   // If a specific dongle is requested, find the node that hosts it

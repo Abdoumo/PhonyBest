@@ -52,6 +52,10 @@ const sendFlexy = async (req, res) => {
         phone_number: number,
         price: String(amount),
       };
+
+      if (offer && !variables.offer) {
+        variables.offer = offer;
+      }
       
       // If a specific dongle was requested, pass it along in case the node script uses it directly
       if (dongle_id) {
