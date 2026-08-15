@@ -9,6 +9,7 @@ export default function OfferMappingsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [modemGridApis, setModemGridApis] = useState([]);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -23,14 +24,35 @@ export default function OfferMappingsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await offerMappingsApi.getOfferMappings();
+      const [res, apisRes] = await Promise.all([
+        offerMappingsApi.getOfferMappings(),
+        offerMappingsApi.getModemGridApis().catch(() => ({ apis: [] }))
+      ]);
       setMappings(res.mappings || []);
+      setModemGridApis(apisRes.apis || []);
     } catch (e) {
       console.error('Error fetching mappings:', e);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Dynamically update JSON description and name
+  useEffect(() => {
+    if (formData.sync_to_modemgrid && !editingId) {
+      try {
+        const parsed = JSON.parse(formData.modemgrid_api_def);
+        parsed.description = `API for ${formData.operator} ${formData.offer_name}`;
+        
+        const newDef = JSON.stringify(parsed, null, 2);
+        if (newDef !== formData.modemgrid_api_def) {
+          setFormData(prev => ({ ...prev, modemgrid_api_def: newDef }));
+        }
+      } catch (e) {
+        // Ignore JSON parse errors while typing
+      }
+    }
+  }, [formData.operator, formData.offer_name, formData.sync_to_modemgrid, editingId]);
 
   useEffect(() => {
     fetchData();
@@ -229,10 +251,16 @@ export default function OfferMappingsPage() {
               <label className="form-label">{t('اسم API في ModemGrid')} <span style={{color: 'red'}}>*</span></label>
               <input
                 className="form-input"
+                list="modemgrid-apis-list"
                 value={formData.modemgrid_api_name}
                 onChange={e => setFormData({ ...formData, modemgrid_api_name: e.target.value })}
                 placeholder="idoom_fibre_api"
               />
+              <datalist id="modemgrid-apis-list">
+                {modemGridApis.map(api => (
+                  <option key={api.id} value={api.name}>{api.description || api.name}</option>
+                ))}
+              </datalist>
             </div>
 
             {!editingId && (

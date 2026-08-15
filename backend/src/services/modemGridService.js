@@ -111,12 +111,23 @@ async function createApiDefinition(apiDefinition) {
   });
 }
 
+/**
+ * Get all API definitions
+ * @returns {Promise<Object>} List of API definitions
+ */
+async function getApiDefinitions() {
+  return modemGridRequest('/definitions', {
+    method: 'GET'
+  });
+}
+
 module.exports = {
   modemGridRequest,
   executeApi,
   sendUssd,
   getModems,
   createApiDefinition,
+  getApiDefinitions,
   MODEM_GRID_API_URL,
   MODEM_GRID_API_KEY
 };

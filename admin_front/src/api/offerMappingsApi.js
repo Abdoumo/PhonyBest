@@ -5,6 +5,11 @@ export const offerMappingsApi = {
     const response = await axiosInstance.get('/admin/offer-mappings');
     return response.data;
   },
+
+  getModemGridApis: async () => {
+    const response = await axiosInstance.get('/admin/offer-mappings/modemgrid-apis');
+    return response.data;
+  },
   
   createOfferMapping: async (data) => {
     const response = await axiosInstance.post('/admin/offer-mappings', data);

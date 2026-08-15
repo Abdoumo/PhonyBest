@@ -1,5 +1,5 @@
 const { query } = require('../config/database');
-const { createApiDefinition } = require('../services/modemGridService');
+const { createApiDefinition, getApiDefinitions } = require('../services/modemGridService');
 
 /**
  * GET /api/v1/admin/offer-mappings
@@ -115,9 +115,24 @@ const deleteOfferMapping = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/v1/admin/offer-mappings/modemgrid-apis
+ * Fetch existing API definitions from Modem Grid
+ */
+const getModemGridApis = async (req, res) => {
+  try {
+    const apis = await getApiDefinitions();
+    res.json({ success: true, apis: apis || [] });
+  } catch (error) {
+    console.error('Error fetching Modem Grid APIs:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch APIs from Modem Grid' });
+  }
+};
+
 module.exports = {
   getOfferMappings,
   createOfferMapping,
   updateOfferMapping,
-  deleteOfferMapping
+  deleteOfferMapping,
+  getModemGridApis
 };
