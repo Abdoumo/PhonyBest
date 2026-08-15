@@ -30,6 +30,11 @@ async function enqueue(nodeId, apiName, variables, transactionId) {
     variables: variables,
   };
 
+  console.log(`\n======================================================`);
+  console.log(`🚀 SENDING REQUEST TO MODEMGRID NODE ${nodeId}:`);
+  console.log(JSON.stringify(message, null, 2));
+  console.log(`======================================================\n`);
+
   // Send to the node
   const sent = nodeManager.sendToNode(nodeId, message);
   if (!sent) {
