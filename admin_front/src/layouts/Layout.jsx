@@ -8,7 +8,7 @@ import {
   FiHome, FiZap, FiWifi, FiCreditCard, FiGift, FiUsers,
   FiPercent, FiArrowUpRight, FiPackage, FiBarChart2, FiImage,
   FiSettings, FiSearch, FiBell, FiLogOut, FiMoon, FiSun, FiFileText, FiList, FiMenu, FiX, FiGlobe, FiShield,
-  FiCheck, FiCheckCircle, FiTrash2, FiAlertCircle, FiInfo, FiAlertTriangle, FiRadio
+  FiCheck, FiCheckCircle, FiTrash2, FiAlertCircle, FiInfo, FiAlertTriangle, FiRadio, FiLink
 } from 'react-icons/fi';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -33,6 +33,7 @@ const navItems = [
     { to: '/analytics', icon: FiBarChart2, label: 'التحليلات' },
     { to: '/modemgrid', icon: FiRadio, label: 'ModemGrid' },
     { to: '/ads', icon: FiImage, label: 'الإعلانات' },
+    { to: '/offer-mappings', icon: FiLink, label: 'عروض النظام' },
     { to: '/security-key', icon: FiShield, label: 'مفاتيح الأمان' },
     { to: '/settings', icon: FiSettings, label: 'الإعدادات' },
   ]},
@@ -231,13 +232,13 @@ export default function Layout() {
               if (id === 'dashboard' || id === 'settings') return true;
               
               // If user has personal permissions, use those (override)
-              if (perms.length > 0) return perms.includes(id) || (id === 'security-key' && perms.includes('usb-auth'));
+              if (perms.length > 0) return perms.includes(id) || (id === 'security-key' && perms.includes('usb-auth')) || id === 'offer-mappings';
 
               // Check if we have global dynamic role permissions
               if (globalSettings && globalSettings[`role_perms_${user?.role}`]) {
                 const rolePerms = globalSettings[`role_perms_${user.role}`];
                 const parsed = Array.isArray(rolePerms) ? rolePerms : JSON.parse(rolePerms || '[]');
-                return parsed.includes(id) || (id === 'security-key' && parsed.includes('usb-auth'));
+                return parsed.includes(id) || (id === 'security-key' && parsed.includes('usb-auth')) || id === 'offer-mappings';
               }
 
               // Otherwise fallback to sensible defaults

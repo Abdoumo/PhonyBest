@@ -23,6 +23,7 @@ import SettingsPage from './pages/SettingsPage';
 import TransactionsPage from './pages/TransactionsPage';
 import SecurityKeyPage from './pages/SecurityKeyPage';
 import ModemGridPage from './pages/ModemGridPage';
+import OfferMappingsPage from './pages/OfferMappingsPage';
 
 function ProtectedRoute({ children }) {
   const { user, initialized } = useSelector(s => s.auth);
@@ -65,6 +66,7 @@ function AppRoutes() {
           <Route path="transactions" element={<TransactionsPage />} />
           <Route path="security-key" element={<SecurityKeyPage />} />
           <Route path="modemgrid" element={<ModemGridPage />} />
+          <Route path="offer-mappings" element={<OfferMappingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
