@@ -155,14 +155,14 @@ export default function OfferMappingsPage() {
                 <tr key={m.id}>
                   <td><span className="badge-status pending">{m.service_type}</span></td>
                   <td>
-                    <span className={\`mg-dongle-operator \${m.operator.toLowerCase()}\`}>
+                    <span className={`mg-dongle-operator ${m.operator.toLowerCase()}`}>
                       {m.operator}
                     </span>
                   </td>
                   <td style={{ fontWeight: 600 }}>{m.offer_name}</td>
                   <td style={{ fontFamily: 'monospace', color: 'var(--primary)' }}>{m.modemgrid_api_name}</td>
                   <td>
-                    <span className={\`badge-status \${m.is_active ? 'success' : 'danger'}\`}>
+                    <span className={`badge-status ${m.is_active ? 'success' : 'danger'}`}>
                       {m.is_active ? t('نشط') : t('غير نشط')}
                     </span>
                   </td>
