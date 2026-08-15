@@ -20,9 +20,22 @@ const OPERATOR_MAP = {
  * @param {number} amount - The topup amount
  * @param {string} apiName - Optional specific API name to use
  * @param {string} dongleId - Optional specific modem/dongle ID to target
+ * @param {string} serviceType - Optional service type (e.g. 'idoom')
+ * @param {string} offerName - Optional offer name (e.g. 'fibre')
  * @returns {Object|null} - { nodeId, apiName } or null if no suitable target found
  */
-async function selectBestTarget(operator, amount, apiName = null, dongleId = null) {
+async function selectBestTarget(operator, amount, apiName = null, dongleId = null, serviceType = null, offerName = null) {
+  let mappedApiName = apiName;
+  if (!mappedApiName && serviceType && offerName) {
+    const mappingResult = await query(
+      'SELECT modemgrid_api_name FROM offer_api_mappings WHERE service_type = $1 AND operator = $2 AND offer_name = $3 AND is_active = true',
+      [serviceType, operator, offerName]
+    );
+    if (mappingResult.rows.length > 0) {
+      mappedApiName = mappingResult.rows[0].modemgrid_api_name;
+    }
+  }
+
   const onlineNodeIds = nodeManager.getOnlineNodeIds();
   if (onlineNodeIds.length === 0) {
     return null;
@@ -40,10 +53,10 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
   const pools = poolsResult.rows;
   if (pools.length === 0) return null;
 
-  // If a specific apiName is requested, filter for pools that support it
-  if (apiName) {
+  // If a specific apiName is requested (or mapped), filter for pools that support it
+  if (mappedApiName) {
     const matchingPools = pools.filter(p => 
-      p.api_names && p.api_names.includes(apiName)
+      p.api_names && p.api_names.includes(mappedApiName)
     );
 
     if (matchingPools.length > 0) {
@@ -51,7 +64,7 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
       const best = matchingPools.find(p => parseFloat(p.total_balance) >= amount) || matchingPools[0];
       return {
         nodeId: best.node_id,
-        apiName: apiName,
+        apiName: mappedApiName,
         poolName: best.name,
         nodeName: best.node_name,
         totalBalance: parseFloat(best.total_balance),
@@ -77,7 +90,7 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
 
       return {
         nodeId: d.node_id,
-        apiName: guessedApiName,
+        apiName: mappedApiName || guessedApiName,
         poolName: 'specific_modem',
         nodeName: nodeName,
         totalBalance: amount, // Assume admin selected a modem with enough balance
@@ -108,7 +121,7 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
 
     const best = fallbackPools[0];
     // Use the requested apiName if provided, otherwise try to find an api_name for the operator
-    const finalApiName = apiName || guessApiName(operator, best.api_names);
+    const finalApiName = mappedApiName || guessApiName(operator, best.api_names);
     return {
       nodeId: best.node_id,
       apiName: finalApiName,
@@ -126,7 +139,7 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
 
     if (matchingPools.length > 0) {
       const best = matchingPools[0];
-      const finalApiName = apiName || guessApiName(operator, best.api_names);
+      const finalApiName = mappedApiName || guessApiName(operator, best.api_names);
       return {
         nodeId: best.node_id,
         apiName: finalApiName,

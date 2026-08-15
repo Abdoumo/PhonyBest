@@ -54,26 +54,69 @@ async function modemGridRequest(endpoint, options = {}) {
 }
 
 /**
- * Execute a USSD command via Modem Grid API
- * @param {string} ussd - The USSD code to execute (e.g., '*123#')
- * @param {string} modem - Optional modem identifier or port
- * @returns {Promise<Object>} API response
+ * Execute a configured API by name (runs in background)
+ * @param {string} apiName - Name of the API to execute
+ * @param {Object} variables - Variables required by the API
+ * @param {string} modemId - Optional specific modem ID
+ * @returns {Promise<Object>} Returns a session UUID
  */
-async function executeUssd(ussd, modem) {
-  const body = { ussd };
-  if (modem) {
-    body.modem = modem;
+async function executeApi(apiName, variables = {}, modemId = null) {
+  const body = { variables };
+  if (modemId) {
+    body.modem_id = modemId;
   }
 
-  return modemGridRequest('/ussd/execute', {
+  return modemGridRequest(`/execute/${apiName}`, {
     method: 'POST',
     body: JSON.stringify(body)
   });
 }
 
+/**
+ * Send a raw USSD code directly to a specific modem
+ * @param {string} modemId - The modem identifier (e.g. 'dongle1')
+ * @param {string} ussdCode - The USSD code (e.g. '*123#')
+ * @returns {Promise<Object>} API response
+ */
+async function sendUssd(modemId, ussdCode) {
+  return modemGridRequest(`/modems/${modemId}/ussd?ussd_code=${encodeURIComponent(ussdCode)}`, {
+    method: 'POST'
+  });
+}
+
+/**
+ * Get a list of all modems
+ * @returns {Promise<Object>} List of modems
+ */
+async function getModems() {
+  return modemGridRequest('/modems', {
+    method: 'GET'
+  });
+}
+
+/**
+ * Create a new API definition programmatically
+ * @param {Object} apiDefinition - The API definition object
+ * @param {string} apiDefinition.name - Name of the API (e.g. 'transfer')
+ * @param {string} [apiDefinition.description] - Description
+ * @param {Array<Object>} apiDefinition.steps - Array of steps e.g. [{ action: 'send', code: '*123#' }]
+ * @param {Array<Object>} [apiDefinition.variables] - Array of required variables e.g. [{ name: 'pin', required: true }]
+ * @param {number} [apiDefinition.timeout_seconds=60] - Timeout in seconds
+ * @returns {Promise<Object>} The created API definition
+ */
+async function createApiDefinition(apiDefinition) {
+  return modemGridRequest('/definitions', {
+    method: 'POST',
+    body: JSON.stringify(apiDefinition)
+  });
+}
+
 module.exports = {
   modemGridRequest,
-  executeUssd,
+  executeApi,
+  sendUssd,
+  getModems,
+  createApiDefinition,
   MODEM_GRID_API_URL,
   MODEM_GRID_API_KEY
 };

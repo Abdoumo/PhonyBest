@@ -40,7 +40,7 @@ const rechargeIdoom = async (req, res) => {
     }
 
     // --- Route through ModemGrid WSS ---
-    const target = await routingEngine.selectBestTarget('idoom', amount);
+    const target = await routingEngine.selectBestTarget('idoom', amount, null, null, 'idoom', type || 'adsl');
 
     if (target) {
       const variables = {

@@ -77,6 +77,7 @@ app.use('/api/v1/transactions', require('./src/routes/transactions'));
 app.use('/api/v1/usb-auth', require('./src/routes/usbAuth'));
 app.use('/api/v1/notifications', require('./src/routes/notifications'));
 app.use('/api/v1/wss', require('./src/routes/wssNodes'));
+app.use('/api/v1/admin/offer-mappings', require('./src/routes/offerMappings'));
 
 app.get('/api/v1/debug-usb', async (req, res) => {
   const { query } = require('./src/config/database');

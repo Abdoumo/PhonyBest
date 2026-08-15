@@ -42,8 +42,8 @@ const sendFlexy = async (req, res) => {
     }
 
     // --- Route through ModemGrid WSS ---
-    // We can use the 'offer' field to specify an exact api_name (like 'test_var' or 'topup_mobilis')
-    const target = await routingEngine.selectBestTarget(operator, amount, offer, dongle_id);
+    // We can use the 'offer' field to specify an exact api_name or lookup a dynamic mapping
+    const target = await routingEngine.selectBestTarget(operator, amount, offer, dongle_id, 'flexy', offer);
 
     if (target) {
       // Build variables for the ModemGrid API

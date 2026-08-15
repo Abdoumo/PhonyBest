@@ -131,6 +131,20 @@ const createTables = async () => {
       );
     `);
 
+    // API Mappings (Offer <-> ModemGrid API) table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS offer_api_mappings (
+        id SERIAL PRIMARY KEY,
+        service_type VARCHAR(30) NOT NULL,
+        operator VARCHAR(50) NOT NULL,
+        offer_name VARCHAR(100) NOT NULL,
+        modemgrid_api_name VARCHAR(100) NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(service_type, operator, offer_name)
+      );
+    `);
+
     // Transfers table
     await client.query(`
       CREATE TABLE IF NOT EXISTS transfers (
