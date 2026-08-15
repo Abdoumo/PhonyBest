@@ -107,11 +107,11 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
     if (fallbackPools.length === 0) return null;
 
     const best = fallbackPools[0];
-    // Try to find an api_name for the operator
-    const guessedApiName = guessApiName(operator, best.api_names);
+    // Use the requested apiName if provided, otherwise try to find an api_name for the operator
+    const finalApiName = apiName || guessApiName(operator, best.api_names);
     return {
       nodeId: best.node_id,
-      apiName: guessedApiName,
+      apiName: finalApiName,
       poolName: best.name,
       nodeName: best.node_name,
       totalBalance: parseFloat(best.total_balance),
@@ -126,10 +126,10 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
 
     if (matchingPools.length > 0) {
       const best = matchingPools[0];
-      const guessedApiName = guessApiName(operator, best.api_names);
+      const finalApiName = apiName || guessApiName(operator, best.api_names);
       return {
         nodeId: best.node_id,
-        apiName: guessedApiName,
+        apiName: finalApiName,
         poolName: best.name,
         nodeName: best.node_name,
         totalBalance: parseFloat(best.total_balance),
