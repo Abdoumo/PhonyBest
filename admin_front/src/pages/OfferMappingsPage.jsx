@@ -62,7 +62,7 @@ export default function OfferMappingsPage() {
   // Form State
   const [formData, setFormData] = useState({
     service_type: 'idoom',
-    operator: 'idoom',
+    operator: 'adsl',
     offer_name: '',
     modemgrid_api_name: '',
     sync_to_modemgrid: false,
@@ -110,6 +110,19 @@ export default function OfferMappingsPage() {
     fetchData();
   }, [fetchData]);
 
+  // Adjust operator dropdown when service_type changes
+  useEffect(() => {
+    if (formData.service_type === 'idoom') {
+      if (!['adsl', 'fibre', '4g_lte'].includes(formData.operator)) {
+        setFormData(prev => ({ ...prev, operator: 'adsl' }));
+      }
+    } else {
+      if (!['mobilis', 'djezzy', 'ooredoo', 'idoom'].includes(formData.operator)) {
+        setFormData(prev => ({ ...prev, operator: 'mobilis' }));
+      }
+    }
+  }, [formData.service_type]);
+
   const handleOpenModal = (mapping = null) => {
     if (mapping) {
       setEditingId(mapping.id);
@@ -125,11 +138,11 @@ export default function OfferMappingsPage() {
       setEditingId(null);
       setFormData({
         service_type: 'idoom',
-        operator: 'idoom',
+        operator: 'adsl',
         offer_name: '',
         modemgrid_api_name: '',
         sync_to_modemgrid: false,
-        modemgrid_api_def: JSON.stringify(getDefaultTemplate('idoom', 'idoom', ''), null, 2)
+        modemgrid_api_def: JSON.stringify(getDefaultTemplate('idoom', 'adsl', ''), null, 2)
       });
     }
     setShowModal(true);
@@ -281,10 +294,20 @@ export default function OfferMappingsPage() {
               <div className="form-group">
                 <label className="form-label">{t('المشغل')}</label>
                 <select className="form-input" value={formData.operator} onChange={e => setFormData({ ...formData, operator: e.target.value })}>
-                  <option value="idoom">Idoom</option>
-                  <option value="mobilis">Mobilis</option>
-                  <option value="djezzy">Djezzy</option>
-                  <option value="ooredoo">Ooredoo</option>
+                  {formData.service_type === 'idoom' ? (
+                    <>
+                      <option value="adsl">ADSL</option>
+                      <option value="fibre">Fibre</option>
+                      <option value="4g_lte">4G LTE</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="idoom">Idoom</option>
+                      <option value="mobilis">Mobilis</option>
+                      <option value="djezzy">Djezzy</option>
+                      <option value="ooredoo">Ooredoo</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>
