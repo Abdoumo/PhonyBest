@@ -186,23 +186,37 @@ def read_auth_file(drive_letter):
     
     try:
         with open(auth_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        # Validate required fields
-        required = ['version', 'user_id', 'auth_token', 'signature', 'issuer']
-        for field in required:
-            if field not in data:
-                print(f"  [AUTH] Missing field: {field}")
-                return None
-        
-        if data.get('issuer') != 'FlexyGSM-USB-Auth':
-            print("  [AUTH] Invalid issuer")
+            content = f.read().strip()
+            
+        if not content:
             return None
-        
-        return data
-    except json.JSONDecodeError as e:
-        print(f"  [AUTH] Invalid JSON: {e}")
-        return None
+            
+        # Check if it's the legacy JSON format
+        if content.startswith('{'):
+            try:
+                data = json.loads(content)
+                # Validate required fields for legacy format
+                required = ['version', 'user_id', 'auth_token', 'signature', 'issuer']
+                for field in required:
+                    if field not in data:
+                        print(f"  [AUTH] Missing field: {field}")
+                        return None
+                
+                if data.get('issuer') != 'FlexyGSM-USB-Auth':
+                    print("  [AUTH] Invalid issuer")
+                    return None
+                    
+                return {"format": "json", "data": data}
+            except json.JSONDecodeError as e:
+                print(f"  [AUTH] Invalid JSON: {e}")
+                return None
+        else:
+            # It's the new encrypted payload format (iv:ciphertext)
+            if ':' not in content:
+                print("  [AUTH] Invalid encrypted payload format")
+                return None
+            return {"format": "encrypted", "payload": content}
+            
     except PermissionError:
         print("  [AUTH] Permission denied reading file")
         return None
@@ -278,15 +292,21 @@ class USBAuthClient:
         self._heartbeat_thread = None
         self._stop_heartbeat = threading.Event()
     
-    def verify(self, auth_data, usb_serial):
+    def verify(self, auth_result, usb_serial):
         """Send verification request to backend."""
         try:
-            payload = {
-                "auth_token": auth_data['auth_token'],
-                "user_id": auth_data['user_id'],
-                "usb_serial": usb_serial,
-                "signature": auth_data['signature'],
-            }
+            if auth_result['format'] == 'json':
+                payload = {
+                    "auth_token": auth_result['data']['auth_token'],
+                    "user_id": auth_result['data']['user_id'],
+                    "usb_serial": usb_serial,
+                    "signature": auth_result['data']['signature'],
+                }
+            else:
+                payload = {
+                    "encrypted_payload": auth_result['payload'],
+                    "usb_serial": usb_serial
+                }
             
             response = requests.post(
                 f"{self.api_url}/usb-auth/verify",
@@ -458,12 +478,16 @@ def main():
                 drives = get_removable_drives()
                 
                 for drive in drives:
-                    auth_data = read_auth_file(drive)
-                    if auth_data is None:
+                    auth_result = read_auth_file(drive)
+                    if auth_result is None:
                         continue
                     
                     print_status(f"Security key found on drive {drive}", "USB")
-                    print_status(f"User: {auth_data.get('username', 'Unknown')} (ID: {auth_data['user_id']})", "INFO")
+                    
+                    if auth_result['format'] == 'json':
+                        print_status(f"User: {auth_result['data'].get('username', 'Unknown')} (ID: {auth_result['data']['user_id']})", "INFO")
+                    else:
+                        print_status("Format: Encrypted Payload (Secure Mode)", "INFO")
                     
                     # Get USB serial
                     usb_serial = get_usb_serial(drive)
@@ -474,7 +498,7 @@ def main():
                     print_status(f"USB Serial: {usb_serial}", "INFO")
                     print_status("Verifying with server...", "INFO")
                     
-                    success, message = client.verify(auth_data, usb_serial)
+                    success, message = client.verify(auth_result, usb_serial)
                     
                     if success:
                         client.active_drive = drive

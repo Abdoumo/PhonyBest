@@ -7,6 +7,32 @@ const USB_ENCRYPTION_KEY = process.env.USB_ENCRYPTION_KEY || 'flexy_usb_encrypti
 const SESSION_TIMEOUT_MS = 15000;
 
 /**
+ * Encrypt a string using AES-256-CBC
+ */
+function encryptAuthData(text) {
+  const iv = crypto.randomBytes(16);
+  const key = crypto.createHash('sha256').update(USB_ENCRYPTION_KEY).digest();
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return iv.toString('hex') + ':' + encrypted;
+}
+
+/**
+ * Decrypt a string using AES-256-CBC
+ */
+function decryptAuthData(text) {
+  const textParts = text.split(':');
+  const iv = Buffer.from(textParts.shift(), 'hex');
+  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+  const key = crypto.createHash('sha256').update(USB_ENCRYPTION_KEY).digest();
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+  let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+
+/**
  * Generate a security.auth file content for a user
  * POST /api/v1/usb-auth/generate-key
  * Body: { user_id } (admin only)
@@ -46,16 +72,18 @@ const generateSecurityKey = async (req, res) => {
       DO UPDATE SET token_hash = $2, status = 'active', updated_at = NOW()
     `, [user.id, tokenHash]);
 
-    // Build the security.auth file content
-    const authFileContent = JSON.stringify({
-      version: '1.0',
+    // Build the security.auth file content (Encrypted Payload)
+    const rawAuthData = JSON.stringify({
+      version: '2.0',
       user_id: user.id,
       username: user.username,
       auth_token: authToken,
       signature: signature,
       issued_at: new Date().toISOString(),
       issuer: 'FlexyGSM-USB-Auth',
-    }, null, 2);
+    });
+
+    const authFileContent = encryptAuthData(rawAuthData);
 
     res.json({
       success: true,
@@ -98,16 +126,18 @@ const generateMyKey = async (req, res) => {
       DO UPDATE SET token_hash = $2, status = 'active', updated_at = NOW()
     `, [user.id, tokenHash]);
 
-    // Build the security.auth file content
-    const authFileContent = JSON.stringify({
-      version: '1.0',
+    // Build the security.auth file content (Encrypted Payload)
+    const rawAuthData = JSON.stringify({
+      version: '2.0',
       user_id: user.id,
       username: user.username,
       auth_token: authToken,
       signature: signature,
       issued_at: new Date().toISOString(),
       issuer: 'FlexyGSM-USB-Auth',
-    }, null, 2);
+    });
+
+    const authFileContent = encryptAuthData(rawAuthData);
 
     res.json({
       success: true,
@@ -204,15 +234,17 @@ const downloadSecurityKey = async (req, res) => {
       DO UPDATE SET token_hash = $2, status = 'active', updated_at = NOW()
     `, [user.id, tokenHash]);
 
-    const authFileContent = JSON.stringify({
-      version: '1.0',
+    const rawAuthData = JSON.stringify({
+      version: '2.0',
       user_id: user.id,
       username: user.username,
       auth_token: authToken,
       signature: signature,
       issued_at: new Date().toISOString(),
       issuer: 'FlexyGSM-USB-Auth',
-    }, null, 2);
+    });
+
+    const authFileContent = encryptAuthData(rawAuthData);
 
     // Send as downloadable file
     res.setHeader('Content-Type', 'application/octet-stream');
@@ -231,27 +263,45 @@ const downloadSecurityKey = async (req, res) => {
  */
 const verifyUsb = async (req, res) => {
   try {
-    const { auth_token, user_id, usb_serial, signature } = req.body;
+    const { encrypted_payload, auth_token, user_id, usb_serial, signature } = req.body;
 
-    if (!auth_token || !user_id || !usb_serial) {
-      return res.status(400).json({ error: 'auth_token, user_id, and usb_serial are required' });
+    let actualToken, actualUserId, actualSignature;
+
+    if (encrypted_payload) {
+      try {
+        const decrypted = decryptAuthData(encrypted_payload);
+        const data = JSON.parse(decrypted);
+        actualToken = data.auth_token;
+        actualUserId = data.user_id;
+        actualSignature = data.signature;
+      } catch (e) {
+        return res.status(401).json({ error: 'Invalid or corrupted encrypted auth file' });
+      }
+    } else {
+      actualToken = auth_token;
+      actualUserId = user_id;
+      actualSignature = signature;
+    }
+
+    if (!actualToken || !actualUserId || !usb_serial) {
+      return res.status(400).json({ error: 'auth file contents and usb_serial are required' });
     }
 
     // Verify signature
     const hmac = crypto.createHmac('sha256', USB_ENCRYPTION_KEY);
-    hmac.update(`${user_id}:${auth_token}`);
+    hmac.update(`${actualUserId}:${actualToken}`);
     const expectedSignature = hmac.digest('hex');
 
-    if (signature !== expectedSignature) {
+    if (actualSignature !== expectedSignature) {
       return res.status(401).json({ error: 'Invalid signature - tampered auth file' });
     }
 
     // Check the token hash matches
-    const tokenHash = crypto.createHash('sha256').update(auth_token).digest('hex');
+    const tokenHash = crypto.createHash('sha256').update(actualToken).digest('hex');
 
     const keyResult = await query(
       'SELECT * FROM usb_auth_keys WHERE user_id = $1 AND token_hash = $2 AND status = $3',
-      [user_id, tokenHash, 'active']
+      [actualUserId, tokenHash, 'active']
     );
 
     if (keyResult.rows.length === 0) {
@@ -271,7 +321,7 @@ const verifyUsb = async (req, res) => {
     }
 
     // Verify user exists and is active
-    const userResult = await query('SELECT id, username, role, status FROM users WHERE id = $1', [user_id]);
+    const userResult = await query('SELECT id, username, role, status FROM users WHERE id = $1', [actualUserId]);
     if (userResult.rows.length === 0 || userResult.rows[0].status !== 'active') {
       return res.status(401).json({ error: 'User not found or inactive' });
     }
@@ -279,7 +329,7 @@ const verifyUsb = async (req, res) => {
     // Invalidate any existing sessions for this user
     await query(
       "UPDATE usb_sessions SET status = 'expired', ended_at = NOW() WHERE user_id = $1 AND status = 'active'",
-      [user_id]
+      [actualUserId]
     );
 
     // Create new session
@@ -287,15 +337,15 @@ const verifyUsb = async (req, res) => {
     await query(`
       INSERT INTO usb_sessions (session_id, user_id, usb_serial, status, last_heartbeat, created_at)
       VALUES ($1, $2, $3, 'active', NOW(), NOW())
-    `, [sessionId, user_id, usb_serial]);
+    `, [sessionId, actualUserId, usb_serial]);
 
     // Update user's last login
-    await query('UPDATE users SET last_login = NOW() WHERE id = $1', [user_id]);
+    await query('UPDATE users SET last_login = NOW() WHERE id = $1', [actualUserId]);
 
     // Log the USB auth event
     await query(
       "INSERT INTO session_logs (user_id, ip_address, user_agent, action) VALUES ($1, $2, $3, $4)",
-      [user_id, req.ip, req.headers['user-agent'] || 'USB-Auth-Client', 'usb_login']
+      [actualUserId, req.ip, req.headers['user-agent'] || 'USB-Auth-Client', 'usb_login']
     );
 
     const user = userResult.rows[0];
