@@ -639,6 +639,26 @@ export const translations = {
     "منذ": "Il y a",
     "دقيقة": "min",
     "ساعة": "h",
-    "يوم": "j"
+    "يوم": "j",
+    "عروض النظام": "Offres du Système",
+    "إدارة العروض و API": "Gestion des Offres et APIs",
+    "ربط عروض النظام مع واجهات ModemGrid": "Lier les offres du système avec les APIs ModemGrid",
+    "إضافة ربط جديد": "Ajouter un nouveau lien",
+    "الروابط الحالية": "Liens Actuels",
+    "لا توجد روابط مسجلة": "Aucun lien enregistré",
+    "نوع الخدمة": "Type de Service",
+    "المشغل": "Opérateur",
+    "اسم العرض": "Nom de l'offre",
+    "اسم API (ModemGrid)": "Nom API (ModemGrid)",
+    "غير نشط": "Inactif",
+    "تعديل الربط": "Modifier le lien",
+    "اسم العرض (مثل: fibre أو adsl أو pixx)": "Nom de l'offre (ex: fibre, adsl, pixx)",
+    "اسم API في ModemGrid": "Nom de l'API dans ModemGrid",
+    "إنشاء هذا الـ API في ModemGrid أيضاً؟": "Créer aussi cette API dans ModemGrid ?",
+    "تعريف API (JSON)": "Définition de l'API (JSON)",
+    "إلغاء": "Annuler",
+    "حفظ": "Enregistrer",
+    "الرجاء ملء الحقول الإجبارية": "Veuillez remplir les champs obligatoires",
+    "هل تريد حذف هذا الربط؟": "Voulez-vous supprimer ce lien ?"
 }
 };
