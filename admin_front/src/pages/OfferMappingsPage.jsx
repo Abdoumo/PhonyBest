@@ -3,6 +3,54 @@ import { offerMappingsApi } from '../api/offerMappingsApi';
 import { useLanguage } from '../contexts/LanguageContext';
 import { FiLink, FiPlus, FiEdit2, FiTrash2, FiX, FiRefreshCw } from 'react-icons/fi';
 
+const getDefaultTemplate = (service_type, operator, offer_name) => {
+  if (service_type === 'flexy') {
+    return {
+      description: `Send money via USSD for ${operator} ${offer_name}`,
+      timeout_seconds: 60,
+      variables: [
+        { name: "phone_number", type: "string", required: true },
+        { name: "amount", type: "string", required: true },
+        { name: "pin_code", type: "string", required: true }
+      ],
+      steps: [
+        { action: "send", code: "*707#" },
+        { action: "send", code: "1" },
+        { action: "send", code: "{phone_number}" },
+        { action: "send", code: "{amount}" },
+        { action: "send", code: "{pin_code}" },
+        { action: "release" }
+      ]
+    };
+  } else if (service_type === 'idoom') {
+    return {
+      description: `Effectuer recharge Idoom ${offer_name}`,
+      timeout_seconds: 60,
+      variables: [
+        { name: "phone_number", type: "string", required: true },
+        { name: "amount", type: "string", required: true }
+      ],
+      steps: [
+        { action: "send", code: "*111#" },
+        { action: "send", code: "2" },
+        { action: "send", code: "{phone_number}" },
+        { action: "send", code: "{amount}" },
+        { action: "release" }
+      ]
+    };
+  }
+  
+  return {
+    description: `API for ${operator} ${offer_name}`,
+    timeout_seconds: 60,
+    variables: [
+      { name: "phone_number", type: "string", required: true },
+      { name: "price", type: "string", required: true }
+    ],
+    steps: []
+  };
+};
+
 export default function OfferMappingsPage() {
   const { t } = useLanguage();
   const [mappings, setMappings] = useState([]);
@@ -41,10 +89,14 @@ export default function OfferMappingsPage() {
   useEffect(() => {
     if (formData.sync_to_modemgrid && !editingId) {
       try {
-        const parsed = JSON.parse(formData.modemgrid_api_def);
-        parsed.description = `API for ${formData.operator} ${formData.offer_name}`;
+        const parsedCurrent = JSON.parse(formData.modemgrid_api_def || '{}');
+        const newTemplate = getDefaultTemplate(formData.service_type, formData.operator, formData.offer_name);
         
-        const newDef = JSON.stringify(parsed, null, 2);
+        // Preserve manually edited steps/variables if they exist, but update description
+        // If the user hasn't edited the steps, or it's empty, replace it fully.
+        // For simplicity, we fully replace the JSON to show the templates you requested!
+        const newDef = JSON.stringify(newTemplate, null, 2);
+        
         if (newDef !== formData.modemgrid_api_def) {
           setFormData(prev => ({ ...prev, modemgrid_api_def: newDef }));
         }
@@ -52,7 +104,7 @@ export default function OfferMappingsPage() {
         // Ignore JSON parse errors while typing
       }
     }
-  }, [formData.operator, formData.offer_name, formData.sync_to_modemgrid, editingId]);
+  }, [formData.service_type, formData.operator, formData.offer_name, formData.sync_to_modemgrid, editingId]);
 
   useEffect(() => {
     fetchData();
@@ -77,7 +129,7 @@ export default function OfferMappingsPage() {
         offer_name: '',
         modemgrid_api_name: '',
         sync_to_modemgrid: false,
-        modemgrid_api_def: '{\n  "description": "",\n  "timeout_seconds": 60,\n  "variables": [\n    { "name": "phone_number", "type": "string", "required": true },\n    { "name": "price", "type": "string", "required": true }\n  ],\n  "steps": []\n}'
+        modemgrid_api_def: JSON.stringify(getDefaultTemplate('idoom', 'idoom', ''), null, 2)
       });
     }
     setShowModal(true);
