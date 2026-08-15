@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const routingEngine = require('../wss/routingEngine');
 const requestQueue = require('../wss/requestQueue');
+const modemGridService = require('../services/modemGridService');
 
 /**
  * POST /api/v1/idoom/recharge
@@ -39,43 +40,94 @@ const rechargeIdoom = async (req, res) => {
       await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [amount, userId]);
     }
 
-    // --- Route through ModemGrid WSS ---
-    const target = await routingEngine.selectBestTarget('idoom', amount, null, null, 'idoom', type || 'adsl');
+    // --- Route through ModemGrid ---
+    let finalStatus = 'failed';
+    let errorMsg = 'No ModemGrid node available';
+    let wssResult = null;
+    let targetInfo = null;
+    let usedExternal = false;
 
-    if (target) {
+    // 1. Check for external API mapping first
+    const mappingResult = await query(
+      'SELECT modemgrid_api_name FROM offer_api_mappings WHERE service_type = $1 AND operator = $2 AND offer_name = $3 AND is_active = true',
+      ['idoom', 'idoom', type || 'adsl']
+    );
+
+    if (mappingResult.rows.length > 0) {
+      usedExternal = true;
+      const apiName = mappingResult.rows[0].modemgrid_api_name;
       const variables = {
         phone_number: phone_number || ssuid,
+        amount: String(amount),
         price: String(amount),
-        ssuid: ssuid || '',
-        type: type || 'adsl',
       };
 
       try {
-        const wssResult = await requestQueue.enqueue(
-          target.nodeId, target.apiName, variables, transaction.id
-        );
+        const mgResponse = await modemGridService.executeAndWaitApi(apiName, variables);
+        wssResult = {
+           status: mgResponse.status === 'completed' ? 'completed' : 'failed',
+           request_id: mgResponse.session_id,
+           modem_id: mgResponse.modem_id || 'modemgrid',
+           result: mgResponse
+        };
+        finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
+        errorMsg = mgResponse.error || null;
+        targetInfo = { nodeName: 'external_modemgrid', apiName };
+      } catch (e) {
+         errorMsg = e.message;
+      }
+    }
 
-        const finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
-        const errorMsg = wssResult.error || null;
+    // 2. Fallback to internal WSS if no external mapping
+    if (!usedExternal) {
+      const target = await routingEngine.selectBestTarget('idoom', amount, null, null, 'idoom', type || 'adsl');
 
-        await query(
-          `UPDATE transactions SET status = $1, error_message = $2, 
-           metadata = metadata || $3, updated_at = NOW() WHERE id = $4`,
-          [
-            finalStatus, errorMsg,
-            JSON.stringify({
-              wss_node: target.nodeName,
-              wss_request_id: wssResult.request_id,
-              wss_modem_id: wssResult.modem_id,
-              wss_result: wssResult.result,
-            }),
-            transaction.id,
-          ]
-        );
+      if (target) {
+        targetInfo = target;
+        const variables = {
+          phone_number: phone_number || ssuid,
+          price: String(amount),
+          ssuid: ssuid || '',
+          type: type || 'adsl',
+        };
 
-        if (finalStatus === 'failed' && !isAdmin) {
-          await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [amount, userId]);
+        try {
+          wssResult = await requestQueue.enqueue(
+            target.nodeId, target.apiName, variables, transaction.id
+          );
+          finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
+          errorMsg = wssResult.error || null;
+        } catch (wssError) {
+          errorMsg = wssError.message;
         }
+      }
+    }
+
+    // 3. Handle results
+    if (wssResult || usedExternal) {
+      if (!wssResult) {
+         // It means usedExternal was true but executeAndWaitApi threw an error
+         finalStatus = 'failed';
+      }
+
+      await query(
+        `UPDATE transactions SET status = $1, error_message = $2, 
+         metadata = metadata || $3, updated_at = NOW() WHERE id = $4`,
+        [
+          finalStatus, errorMsg,
+          JSON.stringify({
+            wss_node: targetInfo?.nodeName || 'unknown',
+            wss_request_id: wssResult?.request_id || null,
+            wss_modem_id: wssResult?.modem_id || null,
+            wss_result: wssResult?.result || null,
+          }),
+          transaction.id,
+        ]
+      );
+
+      if (finalStatus === 'failed' && !isAdmin) {
+        await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [amount, userId]);
+      }
 
         let clientProfit = 0, adminProfit = 0, adminCost = amount;
 
@@ -104,23 +156,10 @@ const rechargeIdoom = async (req, res) => {
           );
         }
 
-        return res.json({
-          success: finalStatus === 'success',
-          transaction: { ...transaction, status: finalStatus, profit: adminProfit, cost: adminCost },
-        });
-      } catch (wssError) {
-        await query(
-          `UPDATE transactions SET status = 'failed', error_message = $1, updated_at = NOW() WHERE id = $2`,
-          [wssError.message, transaction.id]
-        );
-        if (!isAdmin) {
-          await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [amount, userId]);
-        }
-        return res.json({
-          success: false,
-          transaction: { ...transaction, status: 'failed', error_message: wssError.message },
-        });
-      }
+      return res.json({
+        success: finalStatus === 'success',
+        transaction: { ...transaction, status: finalStatus, profit: adminProfit, cost: adminCost, error_message: errorMsg },
+      });
     } else {
       // No node available
       await query(

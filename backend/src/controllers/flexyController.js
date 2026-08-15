@@ -1,6 +1,7 @@
 const { query } = require('../config/database');
 const routingEngine = require('../wss/routingEngine');
 const requestQueue = require('../wss/requestQueue');
+const modemGridService = require('../services/modemGridService');
 
 /**
  * POST /api/v1/flexy/send
@@ -41,133 +42,158 @@ const sendFlexy = async (req, res) => {
       await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [amount, userId]);
     }
 
-    // --- Route through ModemGrid WSS ---
-    // We can use the 'offer' field to specify an exact api_name or lookup a dynamic mapping
-    const target = await routingEngine.selectBestTarget(operator, amount, offer, dongle_id, 'flexy', offer);
+    // --- Route through ModemGrid ---
+    let finalStatus = 'failed';
+    let errorMsg = 'No ModemGrid node available for this operator';
+    let wssResult = null;
+    let targetInfo = null;
+    let usedExternal = false;
 
-    if (target) {
-      // Build variables for the ModemGrid API
-      // Use custom variables if provided, otherwise default to phone_number and price
+    // 1. Check for external API mapping first
+    const mappingResult = await query(
+      'SELECT modemgrid_api_name FROM offer_api_mappings WHERE service_type = $1 AND operator = $2 AND offer_name = $3 AND is_active = true',
+      ['flexy', operator.toLowerCase(), offer || '']
+    );
+
+    if (mappingResult.rows.length > 0) {
+      usedExternal = true;
+      const apiName = mappingResult.rows[0].modemgrid_api_name;
       const variables = customVariables || {
         phone_number: number,
         price: String(amount),
+        amount: String(amount),
       };
-
-      if (offer && !variables.offer) {
-        variables.offer = offer;
-      }
-      
-      // If a specific dongle was requested, pass it along in case the node script uses it directly
-      if (dongle_id) {
-        variables.dongle_id = dongle_id;
-        variables.target_modem = dongle_id;
-      }
+      if (offer && !variables.offer) variables.offer = offer;
 
       try {
-        const wssResult = await requestQueue.enqueue(
-          target.nodeId,
-          target.apiName,
-          variables,
-          transaction.id
-        );
+        const mgResponse = await modemGridService.executeAndWaitApi(apiName, variables);
+        wssResult = {
+           status: mgResponse.status === 'completed' ? 'completed' : 'failed',
+           request_id: mgResponse.session_id,
+           modem_id: mgResponse.modem_id || 'modemgrid',
+           result: mgResponse,
+           duration: 0,
+           raw_data: mgResponse,
+        };
+        finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
+        errorMsg = mgResponse.error || null;
+        targetInfo = { nodeName: 'external_modemgrid', poolName: 'external', apiName };
+      } catch (e) {
+         errorMsg = e.message;
+      }
+    }
 
-        // Update transaction with result from ModemGrid
-        const finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
-        const errorMsg = wssResult.error || null;
-
-        await query(
-          `UPDATE transactions SET status = $1, sim_used = $2, error_message = $3, 
-           metadata = metadata || $4, updated_at = NOW() WHERE id = $5`,
-          [
-            finalStatus,
-            wssResult.modem_id || 'modemgrid',
-            errorMsg,
-            JSON.stringify({
-              wss_node: target.nodeName,
-              wss_pool: target.poolName,
-              wss_request_id: wssResult.request_id,
-              wss_modem_id: wssResult.modem_id,
-              wss_result: wssResult.raw_data,
-              wss_duration_ms: wssResult.duration,
-            }),
-            transaction.id,
-          ]
-        );
-
-        // If failed, refund wallet
-        if (finalStatus === 'failed' && !isAdmin) {
-          await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [amount, userId]);
+    // 2. Fallback to internal WSS if no external mapping
+    if (!usedExternal) {
+      const target = await routingEngine.selectBestTarget(operator, amount, offer, dongle_id, 'flexy', offer);
+      
+      if (target) {
+        targetInfo = target;
+        const variables = customVariables || {
+          phone_number: number,
+          price: String(amount),
+        };
+        if (offer && !variables.offer) variables.offer = offer;
+        if (dongle_id) {
+          variables.dongle_id = dongle_id;
+          variables.target_modem = dongle_id;
         }
 
-        // Calculate commission (only on success)
-        let clientProfit = 0;
-        let adminProfit = 0;
-        let adminCost = amount;
-
-        if (finalStatus === 'success') {
-          const commResult = await query(
-            `SELECT * FROM commission_offers WHERE service = 'flexy' AND operator = $1 AND role = $2 LIMIT 1`,
-            [operator.toLowerCase(), req.user.role]
+        try {
+          wssResult = await requestQueue.enqueue(
+            target.nodeId,
+            target.apiName,
+            variables,
+            transaction.id
           );
+          finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
+          errorMsg = wssResult.error || null;
+        } catch (wssError) {
+          errorMsg = wssError.message;
+        }
+      }
+    }
 
-          if (commResult.rows.length > 0) {
-            const commOffer = commResult.rows[0];
-            if (commOffer.base_amount && commOffer.base_amount > 0) {
-              const clientPriceRate = parseFloat(commOffer.client_price) / parseFloat(commOffer.base_amount);
-              const adminCostRate = parseFloat(commOffer.admin_cost) / parseFloat(commOffer.base_amount);
-              const clientCost = amount * clientPriceRate;
-              adminCost = amount * adminCostRate;
-              clientProfit = amount - clientCost;
-              adminProfit = clientCost - adminCost;
+    // 3. Handle results
+    if (wssResult || usedExternal) {
+      if (!wssResult) finalStatus = 'failed';
 
-              if (clientProfit > 0 && !isAdmin) {
-                await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [clientProfit, userId]);
-              }
+      await query(
+        `UPDATE transactions SET status = $1, sim_used = $2, error_message = $3, 
+         metadata = metadata || $4, updated_at = NOW() WHERE id = $5`,
+        [
+          finalStatus,
+          wssResult?.modem_id || 'modemgrid',
+          errorMsg,
+          JSON.stringify({
+            wss_node: targetInfo?.nodeName || 'unknown',
+            wss_pool: targetInfo?.poolName || 'unknown',
+            wss_request_id: wssResult?.request_id || null,
+            wss_modem_id: wssResult?.modem_id || null,
+            wss_result: wssResult?.raw_data || null,
+            wss_duration_ms: wssResult?.duration || 0,
+          }),
+          transaction.id,
+        ]
+      );
+
+      // If failed, refund wallet
+      if (finalStatus === 'failed' && !isAdmin) {
+        await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [amount, userId]);
+      }
+
+      // Calculate commission (only on success)
+      let clientProfit = 0;
+      let adminProfit = 0;
+      let adminCost = amount;
+
+      if (finalStatus === 'success') {
+        const commResult = await query(
+          `SELECT * FROM commission_offers WHERE service = 'flexy' AND operator = $1 AND role = $2 LIMIT 1`,
+          [operator.toLowerCase(), req.user.role]
+        );
+
+        if (commResult.rows.length > 0) {
+          const commOffer = commResult.rows[0];
+          if (commOffer.base_amount && commOffer.base_amount > 0) {
+            const clientPriceRate = parseFloat(commOffer.client_price) / parseFloat(commOffer.base_amount);
+            const adminCostRate = parseFloat(commOffer.admin_cost) / parseFloat(commOffer.base_amount);
+            const clientCost = amount * clientPriceRate;
+            adminCost = amount * adminCostRate;
+            clientProfit = amount - clientCost;
+            adminProfit = clientCost - adminCost;
+
+            if (clientProfit > 0 && !isAdmin) {
+              await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [clientProfit, userId]);
             }
           }
-
-          await query(
-            'UPDATE transactions SET cost = $1, profit = $2 WHERE id = $3',
-            [adminCost, adminProfit, transaction.id]
-          );
         }
 
-        // Emit Socket.IO event
-        const io = req.app.get('io');
-        if (io) {
-          io.to('admin').emit('transaction_update', { ...transaction, status: finalStatus });
-          io.to(`user_${userId}`).emit('transaction_update', { ...transaction, status: finalStatus });
-        }
-
-        return res.json({
-          success: finalStatus === 'success',
-          transaction: {
-            ...transaction,
-            status: finalStatus,
-            profit: adminProfit,
-            cost: adminCost,
-            clientProfit,
-            error_message: errorMsg,
-            wss_result: wssResult.result,
-          },
-        });
-      } catch (wssError) {
-        // WSS request failed (timeout, node disconnected, etc.)
         await query(
-          `UPDATE transactions SET status = 'failed', error_message = $1, updated_at = NOW() WHERE id = $2`,
-          [wssError.message, transaction.id]
+          'UPDATE transactions SET cost = $1, profit = $2 WHERE id = $3',
+          [adminCost, adminProfit, transaction.id]
         );
-
-        // Refund wallet
-        if (!isAdmin) {
-          await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [amount, userId]);
-        }
-
-        return res.json({
-          success: false,
-          transaction: { ...transaction, status: 'failed', error_message: wssError.message },
-        });
       }
+
+      // Emit Socket.IO event
+      const io = req.app.get('io');
+      if (io) {
+        io.to('admin').emit('transaction_update', { ...transaction, status: finalStatus });
+        io.to(`user_${userId}`).emit('transaction_update', { ...transaction, status: finalStatus });
+      }
+
+      return res.json({
+        success: finalStatus === 'success',
+        transaction: {
+          ...transaction,
+          status: finalStatus,
+          profit: adminProfit,
+          cost: adminCost,
+          clientProfit,
+          error_message: errorMsg,
+          wss_result: wssResult?.result || null,
+        },
+      });
     } else {
       // No ModemGrid node available — mark as failed
       await query(

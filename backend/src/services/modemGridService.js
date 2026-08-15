@@ -71,7 +71,43 @@ async function executeApi(apiName, variables = {}, modemId = null) {
     body: JSON.stringify(body)
   });
 }
+/**
+ * Get the status of an API execution session
+ * @param {string} sessionId - The session UUID
+ * @returns {Promise<Object>} Session status
+ */
+async function getSessionStatus(sessionId) {
+  return modemGridRequest(`/execute/status/${sessionId}`, {
+    method: 'GET'
+  });
+}
 
+/**
+ * Execute a configured API and wait for it to complete by polling the status
+ * @param {string} apiName - Name of the API
+ * @param {Object} variables - Variables
+ * @param {number} timeoutMs - Max polling time in ms
+ * @returns {Promise<Object>} Final session result
+ */
+async function executeAndWaitApi(apiName, variables = {}, timeoutMs = 60000) {
+  const initRes = await executeApi(apiName, variables);
+  const sessionId = initRes.session_id;
+  if (!sessionId) {
+    throw new Error('No session_id returned from executeApi');
+  }
+
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    await new Promise(r => setTimeout(r, 2000)); // Poll every 2 seconds
+    const statusRes = await getSessionStatus(sessionId);
+    
+    if (['completed', 'failed', 'timeout'].includes(statusRes.status)) {
+      return statusRes;
+    }
+  }
+
+  throw new Error(`ModemGrid API execution timed out after ${timeoutMs}ms`);
+}
 /**
  * Send a raw USSD code directly to a specific modem
  * @param {string} modemId - The modem identifier (e.g. 'dongle1')
@@ -124,6 +160,8 @@ async function getApiDefinitions() {
 module.exports = {
   modemGridRequest,
   executeApi,
+  getSessionStatus,
+  executeAndWaitApi,
   sendUssd,
   getModems,
   createApiDefinition,
