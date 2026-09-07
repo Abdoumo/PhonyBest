@@ -79,7 +79,7 @@ export default function SettingsPage() {
       }
       if (isAdmin) {
         try {
-          const poolsRes = await API.get('/wss-nodes/pools');
+          const poolsRes = await API.get('/wss/pools');
           setPools(poolsRes.data.pools || []);
         } catch (e) { console.error("Failed to fetch pools"); }
       }
