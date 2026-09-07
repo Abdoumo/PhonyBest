@@ -41,6 +41,13 @@ export default function FlexyPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [modems, setModems] = useState([]);
   const [selectedModem, setSelectedModem] = useState('');
+  const [history, setHistory] = useState([]);
+
+  const fetchHistory = () => {
+    API.get('/transactions?type=flexy&limit=10')
+      .then(res => setHistory(res.data.transactions || []))
+      .catch(err => console.error(err));
+  };
 
   const filteredClients = clients.filter(c => {
     if (!c.phone) return false;
@@ -64,6 +71,8 @@ export default function FlexyPage() {
     API.get('/flexy/modems')
       .then(r => setModems(r.data.modems || []))
       .catch(e => console.error(e));
+      
+    fetchHistory();
   }, []);
 
   const handleSend = async () => {
@@ -81,6 +90,7 @@ export default function FlexyPage() {
       }
       const { data } = await API.post('/flexy/send', payload);
       setResult({ success: true, msg: `تم إرسال فليكسي! معاملة #${data.transaction.id}` });
+      fetchHistory();
     } catch (err) {
       setResult({ success: false, msg: err.response?.data?.error || 'فشل' });
     }
@@ -226,6 +236,43 @@ export default function FlexyPage() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="card-header">
+          <span className="card-title">{t('سجل فليكسي')}</span>
+        </div>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>{t('الرقم')}</th>
+                <th>{t('النوع')}</th>
+                <th>{t('المبلغ')}</th>
+                <th>{t('الحالة')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((tx, i) => (
+                <tr key={i}>
+                  <td style={{ fontFamily:'monospace', fontWeight:600 }}>{tx.phone_number}</td>
+                  <td style={{ textTransform:'capitalize' }}>{t('فليكسي')}</td>
+                  <td style={{ fontWeight:600 }}>{tx.amount} {t('د.ج')}</td>
+                  <td>
+                    <span className={`badge-status ${tx.status === 'success' ? 'success' : tx.status === 'failed' ? 'danger' : 'warning'}`}>
+                      {tx.status === 'success' ? t('ناجح') : tx.status === 'failed' ? t('فاشل') : t('قيد المعالجة')}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {history.length === 0 && (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>{t('لا توجد معاملات بعد')}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

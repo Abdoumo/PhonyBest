@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { FiWifi, FiSend, FiPhone, FiDollarSign } from 'react-icons/fi';
 import API from '../api/axios';
@@ -18,6 +18,17 @@ export default function IdoomPage() {
   const [amount, setAmount] = useState(1000);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  const fetchHistory = () => {
+    API.get('/transactions?type=idoom&limit=10')
+      .then(res => setHistory(res.data.transactions || []))
+      .catch(err => console.error(err));
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   const handleSend = async () => {
     if (!phone || !amount) return;
@@ -27,6 +38,7 @@ export default function IdoomPage() {
       const { data } = await API.post('/idoom/recharge', { phone_number: phone, amount, type });
       setResult({ success: true, msg: `تمت تعبئة أيدوم بنجاح! معاملة #${data.transaction.id}` });
       setPhone('');
+      fetchHistory();
     } catch (err) {
       setResult({ success: false, msg: err.response?.data?.error || 'حدث خطأ أثناء التعبئة' });
     }
@@ -77,6 +89,7 @@ export default function IdoomPage() {
               ))}
             </div>
             <input className="form-input" type="number" min="1" value={amount}
+            style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }} 
               onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
               onChange={e => setAmount(Number(e.target.value))} placeholder={t("أدخل مبلغاً مخصصاً")} />
           </div>
@@ -93,6 +106,43 @@ export default function IdoomPage() {
           </button>
         </div>
 
+      </div>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="card-header">
+          <span className="card-title">{t('سجل أيدوم')}</span>
+        </div>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>{t('الرقم')}</th>
+                <th>{t('النوع')}</th>
+                <th>{t('المبلغ')}</th>
+                <th>{t('الحالة')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((tx, i) => (
+                <tr key={i}>
+                  <td style={{ fontFamily:'monospace', fontWeight:600 }}>{tx.phone_number}</td>
+                  <td style={{ textTransform:'capitalize' }}>{t('أيدوم')}</td>
+                  <td style={{ fontWeight:600 }}>{tx.amount} {t('د.ج')}</td>
+                  <td>
+                    <span className={`badge-status ${tx.status === 'success' ? 'success' : tx.status === 'failed' ? 'danger' : 'warning'}`}>
+                      {tx.status === 'success' ? t('ناجح') : tx.status === 'failed' ? t('فاشل') : t('قيد المعالجة')}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {history.length === 0 && (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>{t('لا توجد معاملات بعد')}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
