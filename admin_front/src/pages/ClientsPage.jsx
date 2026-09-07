@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useLanguage } from '../contexts/LanguageContext';
-import { FiPlus, FiSearch, FiEdit, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiEdit, FiTrash2, FiDollarSign } from 'react-icons/fi';
 import API from '../api/axios';
 
 export default function ClientsPage() {
@@ -150,6 +150,7 @@ export default function ClientsPage() {
                 <td>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <button className="btn btn-icon btn-secondary btn-sm" onClick={() => handleEdit(u)} title={t("تعديل ومعلومات")}><FiEdit size={14} /></button>
+                    <button className="btn btn-icon btn-secondary btn-sm" style={{ color: 'var(--warning)' }} onClick={() => { setEditId(u.id); setShowDebtModal(true); }} title={t("إدارة الديون")}><FiDollarSign size={14} /></button>
                     <button className="btn btn-icon btn-secondary btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(u.id)}><FiTrash2 size={14} /></button>
                   </div>
                 </td>
@@ -233,12 +234,7 @@ export default function ClientsPage() {
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              {editId && (
-                <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center', borderColor: 'var(--danger)', color: 'var(--danger)' }} onClick={() => setShowDebtModal(true)}>
-                  {t('إدارة الديون (إضافة / تسديد)')}
-                </button>
-              )}
-              <button className="btn btn-primary" style={{ flex: 2, justifyContent: 'center' }} onClick={handleCreateOrUpdate}>
+              <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleCreateOrUpdate}>
                 {editId ? t('حفظ التغييرات') : t('إنشاء مستخدم')}
               </button>
             </div>
