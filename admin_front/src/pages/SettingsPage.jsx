@@ -204,6 +204,7 @@ export default function SettingsPage() {
           </div>
 
           {isAdmin && (
+            <>
             <div className="card">
               <div className="card-header">
                 <span className="card-title">{t('الإعدادات العامة')}</span>
@@ -286,6 +287,7 @@ export default function SettingsPage() {
               {saving ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSave size={14} style={{marginLeft:4}}/>{t('حفظ الإعدادات')}</>}
             </button>
           </div>
+          </>
           )}
         </div>
 
