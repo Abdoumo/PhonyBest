@@ -251,26 +251,24 @@ const markCardUsed = async (req, res) => {
 const sendSpecificCard = async (req, res) => {
   try {
     const { id } = req.params;
-    const { phone_number } = req.body;
+    const { client_id } = req.body;
+
+    if (!client_id) {
+      return res.status(400).json({ error: 'Client ID is required' });
+    }
 
     const cardRes = await query(`SELECT * FROM cards WHERE id=$1 AND status='available' AND uploaded_by=$2`, [id, req.user.id]);
     if (cardRes.rows.length === 0) return res.status(400).json({ error: 'Card not available or not owned by you' });
     const card = cardRes.rows[0];
 
-    const userRes = await query(`SELECT wallet, role FROM users WHERE id=$1`, [req.user.id]);
-    const wallet = parseFloat(userRes.rows[0].wallet);
-    const isSendAdmin = userRes.rows[0].role === 'ADMIN';
-    if (!isSendAdmin && wallet < parseFloat(card.value)) {
-      return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام العملية' });
-    }
+    // Transfer the card
+    await query(`UPDATE cards SET uploaded_by=$1 WHERE id=$2`, [client_id, id]);
 
-    if (!isSendAdmin) {
-      await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [card.value, req.user.id]);
-    }
-    await query(`UPDATE cards SET status='sold', sold_at=NOW() WHERE id=$1`, [id]);
-    await query(`INSERT INTO transactions (type, operator, phone_number, amount, status, client_id, processed_by, metadata) VALUES ('card', $1, $2, $3, 'success', $4, $4, $5)`,
-      [card.operator, phone_number, card.value, req.user.id, JSON.stringify({ card_id: id })]);
-    res.json({ success: true });
+    // Log the transaction
+    await query(`INSERT INTO transactions (type, operator, amount, status, client_id, processed_by, metadata) VALUES ('transfer_cards', $1, $2, 'success', $3, $4, $5)`,
+      [card.operator, card.value, client_id, req.user.id, JSON.stringify({ card_id: id })]);
+      
+    res.json({ success: true, message: 'تم إرسال البطاقة بنجاح' });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 };
 

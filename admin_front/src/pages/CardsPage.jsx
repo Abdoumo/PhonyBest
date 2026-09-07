@@ -33,7 +33,7 @@ export default function CardsPage() {
   const [uploadValue, setUploadValue] = useState(100);
   const [txtFile, setTxtFile] = useState(null);
 
-  const [sendModal, setSendModal] = useState({ show: false, cardId: null, phone: '' });
+  const [sendModal, setSendModal] = useState({ show: false, cardId: null, client_id: '' });
   
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [buyForm, setBuyForm] = useState({ value: '', quantity: 1 });
@@ -149,11 +149,11 @@ export default function CardsPage() {
   };
 
   const handleSendCard = async () => {
-    if (!sendModal.phone) return;
+    if (!sendModal.client_id) return;
     try {
-      await API.post(`/cards/${sendModal.cardId}/send`, { phone_number: sendModal.phone });
+      await API.post(`/cards/${sendModal.cardId}/send`, { client_id: sendModal.client_id });
       alert(t('تم إرسال البطاقة بنجاح'));
-      setSendModal({ show: false, cardId: null, phone: '' });
+      setSendModal({ show: false, cardId: null, client_id: '' });
       loadCards();
     } catch (e) {
       alert(e.response?.data?.error || t('حدث خطأ أثناء الإرسال'));
@@ -363,7 +363,7 @@ export default function CardsPage() {
                     <td style={{ display: 'flex', gap: 8 }}>
                       {c.status === 'available' && c.uploaded_by === user.id && (
                         <>
-                          <button className="btn btn-sm btn-primary" onClick={() => setSendModal({ show: true, cardId: c.id, phone: '' })}>{t('إرسال لرقم')}</button>
+                          <button className="btn btn-sm btn-primary" onClick={() => setSendModal({ show: true, cardId: c.id, client_id: '' })}>{t('إرسال لمستخدم')}</button>
                           <button className="btn btn-sm btn-secondary" onClick={async () => {
                             if (window.confirm(t('هل أنت متأكد من تعيين هذه البطاقة كمباعة/مستخدمة؟'))) {
                               try {
@@ -431,16 +431,21 @@ export default function CardsPage() {
       )}
 
       {sendModal.show && (
-        <div className="modal-overlay" onClick={() => setSendModal({ show: false, cardId: null, phone: '' })}>
+        <div className="modal-overlay" onClick={() => setSendModal({ show: false, cardId: null, client_id: '' })}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">{t('إرسال البطاقة')}</h3>
-              <button className="modal-close" onClick={() => setSendModal({ show: false, cardId: null, phone: '' })}>×</button>
+              <button className="modal-close" onClick={() => setSendModal({ show: false, cardId: null, client_id: '' })}>×</button>
             </div>
             
             <div className="form-group">
-              <label className="form-label">{t('رقم هاتف المستلم')}</label>
-              <input className="form-input" placeholder={t("مثال: 0550000000")} value={sendModal.phone} onChange={e => setSendModal({...sendModal, phone: e.target.value})} />
+              <label className="form-label">{t('المستخدم المستلم')}</label>
+              <select className="form-select" value={sendModal.client_id} onChange={e => setSendModal({...sendModal, client_id: e.target.value})}>
+                <option value="">-- {t('اختر مستخدماً')} --</option>
+                {usersList.map(u => (
+                  <option key={u.id} value={u.id}>{u.full_name || u.username} ({u.role})</option>
+                ))}
+              </select>
             </div>
 
             <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={handleSendCard}>{t('تأكيد الإرسال')}</button>
