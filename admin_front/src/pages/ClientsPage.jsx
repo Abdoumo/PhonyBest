@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useLanguage } from '../contexts/LanguageContext';
 import { FiPlus, FiSearch, FiEdit, FiTrash2, FiDollarSign } from 'react-icons/fi';
@@ -122,7 +123,7 @@ export default function ClientsPage() {
                       {u.full_name?.charAt(0) || u.username?.charAt(0)}
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.full_name || u.username}</div>
+                      <Link to={`/clients/${u.id}`} style={{ fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>{u.full_name || u.username}</Link>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{u.username}</div>
                     </div>
                   </div>
@@ -149,6 +150,7 @@ export default function ClientsPage() {
                 <td><span className={`badge-status ${u.status === 'active' ? 'success' : 'danger'}`}>{t(statusMap[u.status] || u.status)}</span></td>
                 <td>
                   <div style={{ display: 'flex', gap: 4 }}>
+                    <Link to={`/clients/${u.id}`} className="btn btn-icon btn-secondary btn-sm" title={t("عرض الملف الشخصي")}><FiSearch size={14} /></Link>
                     <button className="btn btn-icon btn-secondary btn-sm" onClick={() => handleEdit(u)} title={t("تعديل ومعلومات")}><FiEdit size={14} /></button>
                     <button className="btn btn-icon btn-secondary btn-sm" style={{ color: 'var(--warning)' }} onClick={() => { setEditId(u.id); setShowDebtModal(true); }} title={t("إدارة الديون")}><FiDollarSign size={14} /></button>
                     <button className="btn btn-icon btn-secondary btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(u.id)}><FiTrash2 size={14} /></button>

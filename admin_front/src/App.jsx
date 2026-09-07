@@ -15,6 +15,7 @@ import IdoomPage from './pages/IdoomPage';
 import CardsPage from './pages/CardsPage';
 import CardOrdersPage from './pages/CardOrdersPage';
 import ClientsPage from './pages/ClientsPage';
+import ClientDetailsPage from './pages/ClientDetailsPage';
 import CommissionsPage from './pages/CommissionsPage';
 import TransfersPage from './pages/TransfersPage';
 import StockPage from './pages/StockPage';
@@ -59,6 +60,7 @@ function AppRoutes() {
           <Route path="cards" element={<CardsPage />} />
           <Route path="card-orders" element={<CardOrdersPage />} />
           <Route path="clients" element={<ClientsPage />} />
+          <Route path="clients/:id" element={<ClientDetailsPage />} />
           <Route path="commissions" element={<CommissionsPage />} />
           <Route path="transfers" element={<TransfersPage />} />
           <Route path="stock" element={<StockPage />} />
