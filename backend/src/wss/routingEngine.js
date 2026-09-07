@@ -41,14 +41,29 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
     return null;
   }
 
+  // Check if there is a specific pool configured for this serviceType
+  let specificPoolId = null;
+  if (serviceType) {
+    const settingsResult = await query("SELECT value FROM settings WHERE key = $1", [`pool_${serviceType}`]);
+    if (settingsResult.rows.length > 0) {
+      try {
+        const val = JSON.parse(settingsResult.rows[0].value);
+        if (val) specificPoolId = parseInt(val, 10);
+      } catch (e) {
+        if (settingsResult.rows[0].value) specificPoolId = parseInt(settingsResult.rows[0].value, 10);
+      }
+    }
+  }
+
   // Get all pools from online nodes
   const poolsResult = await query(`
     SELECT p.*, n.id as node_id, n.name as node_name, n.status as node_status
     FROM wss_pools p
     JOIN wss_nodes n ON p.node_id = n.id
     WHERE n.status = 'online' AND n.id = ANY($1) AND p.online_count > 0
+    ${specificPoolId ? `AND p.pool_id = $2` : ''}
     ORDER BY p.total_balance DESC
-  `, [onlineNodeIds]);
+  `, specificPoolId ? [onlineNodeIds, specificPoolId] : [onlineNodeIds]);
 
   const pools = poolsResult.rows;
   if (pools.length === 0) return null;
@@ -109,9 +124,12 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
     FROM wss_dongles d,
     LATERAL unnest(d.pool_ids) as unnest_pool_id
     WHERE d.node_id = ANY($1) AND d.online = true AND d.balance >= $2
-    AND (${operatorPatterns.map((_, i) => `d.operator ILIKE $${i + 3}`).join(' OR ')})
+    ${specificPoolId ? `AND $3 = ANY(d.pool_ids)` : ''}
+    AND (${operatorPatterns.map((_, i) => `d.operator ILIKE $${i + (specificPoolId ? 4 : 3)}`).join(' OR ')})
     GROUP BY d.node_id
-  `, [onlineNodeIds, amount, ...operatorPatterns.map(p => `%${p}%`)]);
+  `, specificPoolId 
+    ? [onlineNodeIds, amount, specificPoolId, ...operatorPatterns.map(p => `%${p}%`)]
+    : [onlineNodeIds, amount, ...operatorPatterns.map(p => `%${p}%`)]);
 
   if (dongleResult.rows.length === 0) {
     // Fallback: try any pool with enough balance on an online node, even without operator matching

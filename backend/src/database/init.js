@@ -63,7 +63,7 @@ const createTables = async () => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
-        type VARCHAR(30) NOT NULL CHECK (type IN ('flexy','idoom','card','buy_cards','transfer_cards','wallet_add','wallet_remove','transfer','debt')),
+        type VARCHAR(30) NOT NULL CHECK (type IN ('flexy','flexy_gros','idoom','card','buy_cards','transfer_cards','wallet_add','wallet_remove','transfer','debt')),
         operator VARCHAR(20),
         phone_number VARCHAR(20),
         amount DECIMAL(12,2) NOT NULL,

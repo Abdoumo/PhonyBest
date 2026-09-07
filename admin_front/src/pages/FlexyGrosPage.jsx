@@ -9,7 +9,7 @@ const operators = [
   { id: 'ooredoo', name: 'أوريدو', color: '#ed1c24', prefix: '05' },
 ];
 
-const amounts = [100, 200, 500, 1000, 1500, 2000];
+const amounts = [100, 200, 500, 1000, 1500, 2000, 5000, 10000];
 
 const operatorOffers = {
   mobilis: [
@@ -29,7 +29,7 @@ const operatorOffers = {
   ]
 };
 
-export default function FlexyPage() {
+export default function FlexyGrosPage() {
   const { t } = useLanguage();
   const [number, setNumber] = useState('');
   const [operator, setOperator] = useState('mobilis');
@@ -44,7 +44,7 @@ export default function FlexyPage() {
   const [history, setHistory] = useState([]);
 
   const fetchHistory = () => {
-    API.get('/transactions?type=flexy&limit=10')
+    API.get('/transactions?type=flexy_gros&limit=10')
       .then(res => setHistory(res.data.transactions || []))
       .catch(err => console.error(err));
   };
@@ -84,7 +84,7 @@ export default function FlexyPage() {
     setLoading(true);
     setResult(null);
     try {
-      const payload = { number, operator, amount, offer };
+      const payload = { number, operator, amount, offer, isGros: true };
       if (selectedModem) {
         payload.dongle_id = selectedModem;
       }
@@ -101,8 +101,8 @@ export default function FlexyPage() {
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">{t('تعبئة فليكسي')}</h1>
-          <p className="page-subtitle">{t('إرسال تعبئة فليكسي لأي رقم')}</p>
+          <h1 className="page-title">{t('فليكسي جملة')}</h1>
+          <p className="page-subtitle">{t('إرسال فليكسي جملة لأي رقم')}</p>
         </div>
       </div>
 
@@ -221,7 +221,7 @@ export default function FlexyPage() {
 
           <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center', padding: 12, fontSize: 23 }}
             onClick={handleSend} disabled={loading}>
-            {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <><FiSend size={14} style={{ marginLeft: 4 }} />{t('إرسال فليكسي')}</>}
+            {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <><FiSend size={14} style={{ marginLeft: 4 }} />{t('إرسال فليكسي جملة')}</>}
           </button>
         </div>
 
@@ -230,7 +230,7 @@ export default function FlexyPage() {
 
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-header">
-          <span className="card-title">{t('سجل فليكسي')}</span>
+          <span className="card-title">{t('سجل فليكسي جملة')}</span>
         </div>
         <div className="table-wrapper">
           <table>
@@ -246,7 +246,7 @@ export default function FlexyPage() {
               {history.map((tx, i) => (
                 <tr key={i}>
                   <td style={{ fontFamily:'monospace', fontWeight:600 }}>{tx.phone_number}</td>
-                  <td style={{ textTransform:'capitalize' }}>{t('فليكسي')}</td>
+                  <td style={{ textTransform:'capitalize' }}>{t('فليكسي جملة')}</td>
                   <td style={{ fontWeight:600 }}>{tx.amount} {t('د.ج')}</td>
                   <td>
                     <span className={`badge-status ${tx.status === 'success' ? 'success' : tx.status === 'failed' ? 'danger' : 'warning'}`}>

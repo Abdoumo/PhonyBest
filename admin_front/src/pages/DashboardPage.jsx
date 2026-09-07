@@ -181,37 +181,8 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid-2" style={{ marginBottom: 24 }}>
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">{t('نظرة عامة على الإيرادات (30 يومًا)')}</span>
-          </div>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chart}>
-                <defs>
-                  <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a3152" />
-                <XAxis dataKey="date" stroke="#64748b" fontSize={11} />
-                <YAxis stroke="#64748b" fontSize={11} />
-                <Tooltip
-                  contentStyle={{ background:'#1a1f35', border:'1px solid #2a3152', borderRadius:8, fontSize:12 }}
-                  labelStyle={{ color:'#94a3b8' }}
-                />
-                <Area type="monotone" dataKey="volume" stroke="#6366f1" fill="url(#colorVolume)" strokeWidth={2} />
-                <Area type="monotone" dataKey="profit" stroke="#10b981" fill="url(#colorProfit)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      <div className="" style={{ marginBottom: 24 }}>
+        
 
         <div className="card">
           <div className="card-header">
@@ -248,6 +219,37 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">{t('نظرة عامة على الإيرادات (30 يومًا)')}</span>
+          </div>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chart}>
+                <defs>
+                  <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a3152" />
+                <XAxis dataKey="date" stroke="#64748b" fontSize={11} />
+                <YAxis stroke="#64748b" fontSize={11} />
+                <Tooltip
+                  contentStyle={{ background:'#1a1f35', border:'1px solid #2a3152', borderRadius:8, fontSize:12 }}
+                  labelStyle={{ color:'#94a3b8' }}
+                />
+                <Area type="monotone" dataKey="volume" stroke="#6366f1" fill="url(#colorVolume)" strokeWidth={2} />
+                <Area type="monotone" dataKey="profit" stroke="#10b981" fill="url(#colorProfit)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

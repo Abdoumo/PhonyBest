@@ -8,8 +8,9 @@ const modemGridService = require('../services/modemGridService');
  */
 const sendFlexy = async (req, res) => {
   try {
-    const { number, operator, amount, offer, dongle_id, variables: customVariables } = req.body;
+    const { number, operator, amount, offer, dongle_id, variables: customVariables, isGros } = req.body;
     const userId = req.user.id;
+    const serviceType = isGros ? 'flexy_gros' : 'flexy';
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'المبلغ غير صالح' });
@@ -32,8 +33,8 @@ const sendFlexy = async (req, res) => {
     // Create transaction (start as 'processing')
     const txResult = await query(
       `INSERT INTO transactions (type, operator, phone_number, amount, offer, sim_used, status, client_id, processed_by)
-       VALUES ('flexy', $1, $2, $3, $4, 'modemgrid', 'processing', $5, $5) RETURNING *`,
-      [operator.toLowerCase(), number, amount, offer || null, userId]
+       VALUES ($1, $2, $3, $4, $5, 'modemgrid', 'processing', $6, $6) RETURNING *`,
+      [serviceType, operator.toLowerCase(), number, amount, offer || null, userId]
     );
     const transaction = txResult.rows[0];
 
@@ -52,7 +53,7 @@ const sendFlexy = async (req, res) => {
     // 1. Check for external API mapping first
     const mappingResult = await query(
       'SELECT modemgrid_api_name FROM offer_api_mappings WHERE service_type = $1 AND operator = $2 AND offer_name = $3 AND is_active = true',
-      ['flexy', operator.toLowerCase(), offer || '']
+      [serviceType, operator.toLowerCase(), offer || '']
     );
 
     if (mappingResult.rows.length > 0) {
@@ -85,7 +86,7 @@ const sendFlexy = async (req, res) => {
 
     // 2. Fallback to internal WSS if no external mapping
     if (!usedExternal) {
-      const target = await routingEngine.selectBestTarget(operator, amount, offer, dongle_id, 'flexy', offer);
+      const target = await routingEngine.selectBestTarget(operator, amount, offer, dongle_id, serviceType, offer);
       
       if (target) {
         targetInfo = target;
@@ -148,6 +149,7 @@ const sendFlexy = async (req, res) => {
       let adminCost = amount;
 
       if (finalStatus === 'success') {
+        // Use 'flexy' as the base commission rule for both flexy and flexy_gros unless we later split them
         const commResult = await query(
           `SELECT * FROM commission_offers WHERE service = 'flexy' AND operator = $1 AND role = $2 LIMIT 1`,
           [operator.toLowerCase(), req.user.role]
@@ -223,14 +225,14 @@ const sendFlexy = async (req, res) => {
  */
 const getFlexyHistory = async (req, res) => {
   try {
-    const { status, operator, search, page = 1, limit = 20 } = req.query;
+    const { status, operator, search, type = 'flexy', page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     const userId = req.user.id;
     const isAdmin = req.user.role === 'ADMIN';
 
-    let sql = `SELECT t.*, u.username as client_name FROM transactions t LEFT JOIN users u ON t.client_id = u.id WHERE t.type = 'flexy'`;
-    const params = [];
-    let paramIdx = 1;
+    let sql = `SELECT t.*, u.username as client_name FROM transactions t LEFT JOIN users u ON t.client_id = u.id WHERE t.type = $1`;
+    const params = [type];
+    let paramIdx = 2;
 
     if (!isAdmin) {
       sql += ` AND t.client_id = $${paramIdx++}`;
