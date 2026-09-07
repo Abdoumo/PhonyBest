@@ -224,7 +224,7 @@ export default function DashboardPage() {
 
         <div className="card"
         style={{
-          margin: '40px 20px',
+          margin: '40px 0px',
           
         }}
         >
