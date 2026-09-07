@@ -7,6 +7,16 @@ export default function TransfersPage() {
   const { t } = useLanguage();
   const [transfers, setTransfers] = useState([]);
   const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({
+    from_user: '',
+    to_user: '',
+    type: '',
+    status: '',
+    min_amount: '',
+    max_amount: '',
+    date_from: '',
+    date_to: ''
+  });
   const [loading, setLoading] = useState(false);
   
   const [showModal, setShowModal] = useState(false);
@@ -15,17 +25,13 @@ export default function TransfersPage() {
 
   const load = () => {
     setLoading(true);
-    API.get('/wallet/history', { params: { search } })
+    API.get('/wallet/history', { params: { search, ...filters } })
       .then(r => setTransfers(r.data.transactions || []))
-      .catch(() => setTransfers([
-        { id: 'TRX-1029', date: '2026-05-15T14:30:00Z', from_user: 'admin', to_user: 'gro_ahmed', amount: 50000, type: 'transfer', status: 'completed' },
-        { id: 'TRX-1028', date: '2026-05-14T10:15:00Z', from_user: 'gro_ahmed', to_user: 'com_karim', amount: 15000, type: 'transfer', status: 'completed' },
-        { id: 'TRX-1027', date: '2026-05-13T09:20:00Z', from_user: 'admin', to_user: 'cli_sara', amount: 2000, type: 'transfer', status: 'completed' },
-      ]))
+      .catch(() => setTransfers([]))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [search]);
+  useEffect(() => { load(); }, [search, filters]);
 
   const handleTransfer = async () => {
     if (!form.username || !form.amount) return;
@@ -53,11 +59,53 @@ export default function TransfersPage() {
       </div>
 
       <div className="table-wrapper">
-        <div className="table-header">
-          <div style={{ display:'flex', gap:8 }}>
-            <div className="header-search" style={{ minWidth:250 }}>
+        <div className="table-header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          <div className="filters-responsive" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('المرسل')}</label>
+              <input className="form-input" placeholder={t("اسم المرسل")} value={filters.from_user} onChange={e => setFilters({ ...filters, from_user: e.target.value })} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('المستلم')}</label>
+              <input className="form-input" placeholder={t("اسم المستلم")} value={filters.to_user} onChange={e => setFilters({ ...filters, to_user: e.target.value })} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('المبلغ (من - إلى)')}</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className="form-input" style={{ width: '50%' }} type="number" placeholder="من" value={filters.min_amount} onChange={e => setFilters({ ...filters, min_amount: e.target.value })} />
+                <input className="form-input" style={{ width: '50%' }} type="number" placeholder="إلى" value={filters.max_amount} onChange={e => setFilters({ ...filters, max_amount: e.target.value })} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('التاريخ (من - إلى)')}</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className="form-input" style={{ width: '50%' }} type="date" value={filters.date_from} onChange={e => setFilters({ ...filters, date_from: e.target.value })} />
+                <input className="form-input" style={{ width: '50%' }} type="date" value={filters.date_to} onChange={e => setFilters({ ...filters, date_to: e.target.value })} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('النوع')}</label>
+              <select className="form-select" value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })}>
+                <option value="">{t('الكل')}</option>
+                <option value="transfer">{t('تحويل')}</option>
+                <option value="deposit">{t('إيداع')}</option>
+                <option value="withdrawal">{t('سحب')}</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('الحالة')}</label>
+              <select className="form-select" value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}>
+                <option value="">{t('الكل')}</option>
+                <option value="completed">{t('مكتمل')}</option>
+                <option value="pending">{t('قيد المعالجة')}</option>
+                <option value="failed">{t('فشل')}</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignSelf: 'flex-start', width: '100%', maxWidth: 300 }}>
+            <div className="header-search" style={{ width: '100%' }}>
               <FiSearch />
-              <input placeholder={t("البحث برقم المعاملة أو المستخدم...")} value={search} onChange={e => setSearch(e.target.value)} />
+              <input placeholder={t("البحث برقم المعاملة...")} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           </div>
         </div>
@@ -87,7 +135,7 @@ export default function TransfersPage() {
                 <td style={{ fontWeight: 600, color: 'var(--success)' }}>+{parseFloat(trx.amount).toLocaleString()} {t('د.ج')}</td>
                 <td>
                   <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12 }}>
-                    <FiArrowUpRight color="var(--accent)" />{t('تحويل')}</span>
+                    <FiArrowUpRight color="var(--accent)" />{t(trx.type === 'transfer' ? 'تحويل' : trx.type === 'deposit' ? 'إيداع' : trx.type === 'withdrawal' ? 'سحب' : trx.type)}</span>
                 </td>
                 <td>
                   <span className={`badge-status ${trx.status === 'completed' ? 'success' : 'warning'}`}>

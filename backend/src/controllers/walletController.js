@@ -2,7 +2,7 @@ const { query } = require('../config/database');
 
 const getHistory = async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, from_user, to_user, type, status, min_amount, max_amount, date_from, date_to } = req.query;
     let sql = `
       SELECT t.id, t.created_at as date, u1.username as from_user, u2.username as to_user, t.amount, t.type, t.status 
       FROM transfers t
@@ -11,10 +11,54 @@ const getHistory = async (req, res) => {
       WHERE 1=1
     `;
     const params = [];
+    let paramIndex = 1;
+
     if (search) {
-      sql += ` AND (u1.username ILIKE $1 OR u2.username ILIKE $1 OR CAST(t.id AS TEXT) ILIKE $1)`;
+      sql += ` AND (u1.username ILIKE $${paramIndex} OR u2.username ILIKE $${paramIndex} OR CAST(t.id AS TEXT) ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
+      paramIndex++;
     }
+    if (from_user) {
+      sql += ` AND u1.username ILIKE $${paramIndex}`;
+      params.push(`%${from_user}%`);
+      paramIndex++;
+    }
+    if (to_user) {
+      sql += ` AND u2.username ILIKE $${paramIndex}`;
+      params.push(`%${to_user}%`);
+      paramIndex++;
+    }
+    if (type) {
+      sql += ` AND t.type = $${paramIndex}`;
+      params.push(type);
+      paramIndex++;
+    }
+    if (status) {
+      sql += ` AND t.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+    if (min_amount) {
+      sql += ` AND t.amount >= $${paramIndex}`;
+      params.push(min_amount);
+      paramIndex++;
+    }
+    if (max_amount) {
+      sql += ` AND t.amount <= $${paramIndex}`;
+      params.push(max_amount);
+      paramIndex++;
+    }
+    if (date_from) {
+      sql += ` AND t.created_at >= $${paramIndex}`;
+      params.push(date_from);
+      paramIndex++;
+    }
+    if (date_to) {
+      sql += ` AND t.created_at <= $${paramIndex}`;
+      params.push(date_to);
+      paramIndex++;
+    }
+
     sql += ` ORDER BY t.created_at DESC LIMIT 100`;
 
     const result = await query(sql, params);
