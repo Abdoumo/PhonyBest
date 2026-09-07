@@ -25,6 +25,13 @@ export default function SettingsPage() {
     maxDailyLimit: 500000,
   });
 
+  const [pools, setPools] = useState([]);
+  const [routingSettings, setRoutingSettings] = useState({
+    pool_flexy: '',
+    pool_flexy_gros: '',
+    pool_idoom: ''
+  });
+
   const [roles] = useState(['SUPER_GRO', 'GROSIST', 'COMMERCANT']);
   const [selectedRole, setSelectedRole] = useState('');
   const [rolePerms, setRolePerms] = useState({});
@@ -64,6 +71,17 @@ export default function SettingsPage() {
           autoApproveTransactions: res.data.settings.autoApproveTransactions === 'true',
           maxDailyLimit: Number(res.data.settings.maxDailyLimit) || 500000,
         });
+        setRoutingSettings({
+          pool_flexy: res.data.settings.pool_flexy || '',
+          pool_flexy_gros: res.data.settings.pool_flexy_gros || '',
+          pool_idoom: res.data.settings.pool_idoom || ''
+        });
+      }
+      if (isAdmin) {
+        try {
+          const poolsRes = await API.get('/wss-nodes/pools');
+          setPools(poolsRes.data.pools || []);
+        } catch (e) { console.error("Failed to fetch pools"); }
       }
     } catch (e) {
       console.error(e);
@@ -107,7 +125,10 @@ export default function SettingsPage() {
         siteName: settings.siteName,
         maintenanceMode: settings.maintenanceMode.toString(),
         autoApproveTransactions: settings.autoApproveTransactions.toString(),
-        maxDailyLimit: settings.maxDailyLimit.toString()
+        maxDailyLimit: settings.maxDailyLimit.toString(),
+        pool_flexy: routingSettings.pool_flexy,
+        pool_flexy_gros: routingSettings.pool_flexy_gros,
+        pool_idoom: routingSettings.pool_idoom
       });
       setMsg({ type: 'success', text: 'تم حفظ إعدادات النظام بنجاح' });
     } catch (e) {
@@ -225,6 +246,42 @@ export default function SettingsPage() {
             </label>
           </div>
 
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSave size={14} style={{marginLeft:4}}/>{t('حفظ الإعدادات')}</>}
+            </button>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">{t('إعدادات التوجيه (المسارات)')}</span>
+              <FiDatabase color="var(--text-muted)" />
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>{t('اختر الـ Pool المخصص لكل نوع خدمة للتحكم في توجيه العمليات. إذا لم تختر أي Pool سيتم التوجيه تلقائيا.')}</p>
+
+            <div className="form-group">
+              <label className="form-label">{t('فليكسي التفصيل (Retail)')}</label>
+              <select className="form-select" value={routingSettings.pool_flexy} onChange={e => setRoutingSettings({...routingSettings, pool_flexy: e.target.value})}>
+                <option value="">{t('توجيه تلقائي (الكل)')}</option>
+                {pools.map(p => <option key={p.pool_id} value={p.pool_id}>{p.name} - رصيد: {p.total_balance}</option>)}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">{t('فليكسي جملة (Wholesale)')}</label>
+              <select className="form-select" value={routingSettings.pool_flexy_gros} onChange={e => setRoutingSettings({...routingSettings, pool_flexy_gros: e.target.value})}>
+                <option value="">{t('توجيه تلقائي (الكل)')}</option>
+                {pools.map(p => <option key={p.pool_id} value={p.pool_id}>{p.name} - رصيد: {p.total_balance}</option>)}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">{t('أيدوم (Idoom)')}</label>
+              <select className="form-select" value={routingSettings.pool_idoom} onChange={e => setRoutingSettings({...routingSettings, pool_idoom: e.target.value})}>
+                <option value="">{t('توجيه تلقائي (الكل)')}</option>
+                {pools.map(p => <option key={p.pool_id} value={p.pool_id}>{p.name} - رصيد: {p.total_balance}</option>)}
+              </select>
+            </div>
+            
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSave size={14} style={{marginLeft:4}}/>{t('حفظ الإعدادات')}</>}
             </button>
