@@ -89,7 +89,7 @@ export default function IdoomPage() {
               ))}
             </div>
             <input className="form-input" type="number" min="1" value={amount}
-            style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }} 
+            style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center',  height: '70px', borderRadius: '12px' }} 
               onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
               onChange={e => setAmount(Number(e.target.value))} placeholder={t("أدخل مبلغاً مخصصاً")} />
           </div>
@@ -100,7 +100,7 @@ export default function IdoomPage() {
             </div>
           )}
 
-          <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center', padding: 12, fontSize: 15 }}
+          <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center', padding: 12, fontSize: 23 }}
             onClick={handleSend} disabled={loading || !phone || !amount}>
             {loading ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSend size={16} style={{marginLeft:6}}/>{t('تعبئة الآن')}</>}
           </button>

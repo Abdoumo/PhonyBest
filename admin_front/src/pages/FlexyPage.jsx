@@ -106,7 +106,7 @@ export default function FlexyPage() {
         </div>
       </div>
 
-      <div className="grid-2">
+      <div className="">
         <div className="card">
           <div className="card-header"><span className="card-title">{t('إرسال تعبئة')}</span></div>
 
@@ -124,6 +124,7 @@ export default function FlexyPage() {
           <div className="form-group" style={{ position: 'relative' }}>
             <label className="form-label"><FiPhone style={{ marginLeft: 4 }} />{t('رقم الهاتف أو اسم العميل')}</label>
             <input className="form-input phone-input-large" placeholder="0550000000" value={number}
+                 style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center',  height: '70px', borderRadius: '12px' }} 
               maxLength={10}
               autoComplete="off"
               onFocus={() => setShowDropdown(true)}
@@ -182,6 +183,7 @@ export default function FlexyPage() {
               ))}
             </div>
             <input className="form-input" type="number" min="1" value={amount}
+                 style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center',  height: '70px', borderRadius: '12px' }} 
               onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
               onChange={e => setAmount(Number(e.target.value))} placeholder={t("مبلغ مخصص")} />
           </div>
@@ -217,26 +219,13 @@ export default function FlexyPage() {
             </div>
           )}
 
-          <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}
+          <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center', padding: 12, fontSize: 23 }}
             onClick={handleSend} disabled={loading}>
             {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <><FiSend size={14} style={{ marginLeft: 4 }} />{t('إرسال فليكسي')}</>}
           </button>
         </div>
 
-        <div className="card">
-          <div className="card-header"><span className="card-title">{t('معلومات سريعة')}</span></div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {operators.map(op => (
-              <div key={op.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'var(--bg-input)', borderRadius: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: op.color }} />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{t(op.name)}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>البادئة: {op.prefix}x</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+
       </div>
 
       <div className="card" style={{ marginTop: 24 }}>
