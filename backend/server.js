@@ -78,6 +78,7 @@ app.use('/api/v1/usb-auth', require('./src/routes/usbAuth'));
 app.use('/api/v1/notifications', require('./src/routes/notifications'));
 app.use('/api/v1/wss', require('./src/routes/wssNodes'));
 app.use('/api/v1/analytics', require('./src/routes/analytics'));
+app.use('/api/v1/stock', require('./src/routes/stock'));
 app.use('/api/v1/admin/offer-mappings', require('./src/routes/offerMappings'));
 
 app.get('/api/v1/debug-usb', async (req, res) => {
