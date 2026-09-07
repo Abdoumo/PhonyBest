@@ -4,30 +4,24 @@ import { FiPieChart, FiBarChart2, FiTrendingUp, FiActivity, FiSearch } from 'rea
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import API from '../api/axios';
 
-const mockPieData = [
-  { name: 'فليكسي', value: 65 },
-  { name: 'أيدوم', value: 20 },
-  { name: 'البطاقات', value: 10 },
-  { name: 'التحويلات', value: 5 },
-];
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444'];
-
-const mockBarData = Array.from({ length: 7 }, (_, i) => ({
-  day: ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][i],
-  revenue: Math.floor(Math.random() * 50000) + 20000
-}));
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function AnalyticsPage() {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [consumptionData, setConsumptionData] = useState([]);
+  const [overviewData, setOverviewData] = useState(null);
   const [search, setSearch] = useState('');
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await API.get('/analytics/consumption', { params: { search } });
-      setConsumptionData(res.data.data || []);
+      const [consRes, overRes] = await Promise.all([
+        API.get('/analytics/consumption', { params: { search } }),
+        API.get('/analytics/overview')
+      ]);
+      setConsumptionData(consRes.data.data || []);
+      setOverviewData(overRes.data.data || null);
     } catch (e) {
       console.error(e);
     }
@@ -35,6 +29,10 @@ export default function AnalyticsPage() {
   };
 
   useEffect(() => { load(); }, [search]);
+
+  const pieData = overviewData?.pieData || [];
+  const barData = overviewData?.barData || [];
+  const stats = overviewData?.stats || { netProfit: 0, bestOperator: '-', bestOperatorPercentage: 0, arpu: 0 };
 
   return (
     <div className="fade-in">
@@ -57,8 +55,8 @@ export default function AnalyticsPage() {
             {loading ? <div style={{display:'flex',height:'100%',alignItems:'center',justifyContent:'center'}}><span className="spinner"/></div> : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={mockPieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                    {mockPieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                  <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                   </Pie>
                   <Tooltip contentStyle={{ background:'#1a1f35', border:'1px solid #2a3152', borderRadius:8 }} itemStyle={{ color:'#f1f5f9' }} />
                 </PieChart>
@@ -66,12 +64,16 @@ export default function AnalyticsPage() {
             )}
           </div>
           <div style={{ display:'flex', justifyContent:'center', gap:16, flexWrap:'wrap', marginTop:16 }}>
-            {mockPieData.map((entry, index) => (
-              <div key={entry.name} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12 }}>
-                <div style={{ width:10, height:10, borderRadius:'50%', background:COLORS[index] }}/>
-                {entry.name} ({entry.value}%)
-              </div>
-            ))}
+            {pieData.map((entry, index) => {
+              const total = pieData.reduce((acc, curr) => acc + curr.value, 0);
+              const percentage = total > 0 ? Math.round((entry.value / total) * 100) : 0;
+              return (
+                <div key={entry.name} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12 }}>
+                  <div style={{ width:10, height:10, borderRadius:'50%', background:COLORS[index % COLORS.length] }}/>
+                  {entry.name} ({percentage}%)
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -83,7 +85,7 @@ export default function AnalyticsPage() {
           <div className="chart-container" style={{ height: 250 }}>
             {loading ? <div style={{display:'flex',height:'100%',alignItems:'center',justifyContent:'center'}}><span className="spinner"/></div> : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockBarData}>
+                <BarChart data={barData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#2a3152" vertical={false} />
                   <XAxis dataKey="day" stroke="#64748b" fontSize={11} tickMargin={10} />
                   <YAxis stroke="#64748b" fontSize={11} tickFormatter={v => `${v/1000}K`} />
@@ -99,25 +101,25 @@ export default function AnalyticsPage() {
       <div className="grid-3">
         <div className="stat-card">
           <div>
-            <p className="stat-label">متوسط إيراد المستخدم (ARPU)</p>
-            <p className="stat-value">4,520 {t('د.ج')}</p>
-            <p className="stat-trend up" style={{ fontSize:12, marginTop:6 }}>+5.2% هذا الشهر</p>
+            <p className="stat-label">{t('متوسط إيراد المستخدم (ARPU)')}</p>
+            <p className="stat-value">{stats.arpu.toLocaleString()} {t('د.ج')}</p>
+            <p className="stat-trend up" style={{ fontSize:12, marginTop:6 }}>{t('المتوسط الشهري للاستهلاك')}</p>
           </div>
           <div className="stat-icon success"><FiTrendingUp size={20} /></div>
         </div>
         <div className="stat-card">
           <div>
             <p className="stat-label">{t('أفضل متعامل (إيرادات)')}</p>
-            <p className="stat-value" style={{ color: 'var(--mobilis)' }}>{t('موبيليس')}</p>
-            <p style={{ fontSize:12, color:'var(--text-muted)', marginTop:6 }}>يستحوذ على 45% من المبيعات</p>
+            <p className="stat-value" style={{ color: stats.bestOperator === 'موبيليس' ? 'var(--mobilis)' : stats.bestOperator === 'أوريدو' ? 'var(--ooredoo)' : stats.bestOperator === 'جيزي' ? 'var(--djezzy)' : 'var(--text-primary)' }}>{t(stats.bestOperator)}</p>
+            <p style={{ fontSize:12, color:'var(--text-muted)', marginTop:6 }}>{t('يستحوذ على')} {stats.bestOperatorPercentage}% {t('من المبيعات')}</p>
           </div>
           <div className="stat-icon info"><FiPieChart size={20} /></div>
         </div>
         <div className="stat-card">
           <div>
             <p className="stat-label">{t('أرباح المنصة الصافية')}</p>
-            <p className="stat-value">124,500 {t('د.ج')}</p>
-            <p className="stat-trend up" style={{ fontSize:12, marginTop:6 }}>+12.8% مقارنة بالشهر الماضي</p>
+            <p className="stat-value">{stats.netProfit.toLocaleString()} {t('د.ج')}</p>
+            <p className="stat-trend up" style={{ fontSize:12, marginTop:6 }}>{t('إجمالي الأرباح من المعاملات الناجحة')}</p>
           </div>
           <div className="stat-icon accent"><FiActivity size={20} /></div>
         </div>
