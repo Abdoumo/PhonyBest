@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { FiPieChart, FiBarChart2, FiTrendingUp, FiActivity } from 'react-icons/fi';
+import { FiPieChart, FiBarChart2, FiTrendingUp, FiActivity, FiSearch } from 'react-icons/fi';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import API from '../api/axios';
 
@@ -20,13 +20,21 @@ const mockBarData = Array.from({ length: 7 }, (_, i) => ({
 export default function AnalyticsPage() {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
+  const [consumptionData, setConsumptionData] = useState([]);
+  const [search, setSearch] = useState('');
 
-  const load = () => {
+  const load = async () => {
     setLoading(true);
-    setTimeout(() => setLoading(false), 500);
+    try {
+      const res = await API.get('/analytics/consumption', { params: { search } });
+      setConsumptionData(res.data.data || []);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [search]);
 
   return (
     <div className="fade-in">
@@ -112,6 +120,60 @@ export default function AnalyticsPage() {
             <p className="stat-trend up" style={{ fontSize:12, marginTop:6 }}>+12.8% مقارنة بالشهر الماضي</p>
           </div>
           <div className="stat-icon accent"><FiActivity size={20} /></div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="card-header" style={{ paddingBottom: 16 }}>
+          <span className="card-title">{t('استهلاك المستخدمين التفصيلي')}</span>
+          <div className="header-search" style={{ minWidth: 250, margin: 0 }}>
+            <FiSearch />
+            <input placeholder={t("البحث عن مستخدم...")} value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+        </div>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>{t('المستخدم')}</th>
+                <th>{t('إجمالي الاستهلاك')}</th>
+                <th style={{ color: 'var(--mobilis)' }}>{t('موبيليس')}</th>
+                <th style={{ color: 'var(--ooredoo)' }}>{t('أوريدو')}</th>
+                <th style={{ color: 'var(--djezzy)' }}>{t('جيزي')}</th>
+                <th style={{ color: 'var(--text-primary)' }}>{t('أيدوم')}</th>
+                <th style={{ color: 'var(--accent)' }}>{t('البطاقات')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && consumptionData.length === 0 ? (
+                <tr><td colSpan="7" style={{ textAlign: 'center', padding: 40 }}><span className="spinner"/></td></tr>
+              ) : consumptionData.length === 0 ? (
+                <tr><td colSpan="7" style={{ textAlign: 'center', padding: 40 }}>{t('لا توجد بيانات')}</td></tr>
+              ) : (
+                consumptionData.map(u => (
+                  <tr key={u.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div className="user-avatar" style={{ width: 32, height: 32, fontSize: 12 }}>
+                          {u.full_name?.charAt(0) || u.username?.charAt(0)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.full_name || u.username}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{u.username} • {u.role}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 'bold' }}>{parseFloat(u.total_consumed).toLocaleString()} {t('د.ج')}</td>
+                    <td style={{ color: 'var(--mobilis)' }}>{parseFloat(u.mobilis_consumed).toLocaleString()} {t('د.ج')}</td>
+                    <td style={{ color: 'var(--ooredoo)' }}>{parseFloat(u.ooredoo_consumed).toLocaleString()} {t('د.ج')}</td>
+                    <td style={{ color: 'var(--djezzy)' }}>{parseFloat(u.djezzy_consumed).toLocaleString()} {t('د.ج')}</td>
+                    <td style={{ color: 'var(--text-primary)' }}>{parseFloat(u.idoom_consumed).toLocaleString()} {t('د.ج')}</td>
+                    <td style={{ color: 'var(--accent)' }}>{parseFloat(u.cards_consumed).toLocaleString()} {t('د.ج')}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
