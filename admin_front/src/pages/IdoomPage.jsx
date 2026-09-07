@@ -92,30 +92,6 @@ export default function IdoomPage() {
           </button>
         </div>
 
-        <div className="card">
-          <div className="card-header"><span className="card-title">{t('معلومات الباقات')}</span></div>
-          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:12, padding:16, background:'var(--bg-input)', borderRadius:8 }}>
-              <div style={{ width:40, height:40, borderRadius:'8px', background: 'var(--info-bg)', color: 'var(--info)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <FiWifi size={20} />
-              </div>
-              <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom: 4 }}>أيدوم ADSL / Fibre</div>
-                <div style={{ fontSize:13, color:'var(--text-muted)' }}>{t('يتم التفعيل فوراً عند إدخال رقم الهاتف الثابت.')}</div>
-              </div>
-            </div>
-            
-            <div style={{ display:'flex', alignItems:'center', gap:12, padding:16, background:'var(--bg-input)', borderRadius:8 }}>
-              <div style={{ width:40, height:40, borderRadius:'8px', background: 'var(--accent-glow)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <FiWifi size={20} />
-              </div>
-              <div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom: 4 }}>أيدوم 4G LTE</div>
-                <div style={{ fontSize:13, color:'var(--text-muted)' }}>تأكد من إدخال رقم الـ MSISDN الخاص بشريحة الجيل الرابع.</div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
