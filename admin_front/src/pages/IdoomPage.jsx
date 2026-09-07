@@ -42,7 +42,7 @@ export default function IdoomPage() {
         </div>
       </div>
 
-      <div className="grid-2">
+      <div className="">
         <div className="card">
           <div className="card-header"><span className="card-title">{t('تنفيذ تعبئة أيدوم')}</span></div>
 
@@ -69,6 +69,7 @@ export default function IdoomPage() {
             <div className="amount-btns" style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:8 }}>
               {predefinedAmounts.map(a => (
                 <button key={a}
+                 style={{ fontSize: '20px'}} 
                   className={`btn btn-sm ${amount === a ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setAmount(a)}>
                   {a} {t('د.ج')}
