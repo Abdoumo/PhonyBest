@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import VerifyUsbPage from './pages/VerifyUsbPage';
 import DashboardPage from './pages/DashboardPage';
 import FlexyPage from './pages/FlexyPage';
+import FlexyGrosPage from './pages/FlexyGrosPage';
 import IdoomPage from './pages/IdoomPage';
 import CardsPage from './pages/CardsPage';
 import CardOrdersPage from './pages/CardOrdersPage';
@@ -53,6 +54,7 @@ function AppRoutes() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="flexy" element={<FlexyPage />} />
+          <Route path="flexy-gros" element={<FlexyGrosPage />} />
           <Route path="idoom" element={<IdoomPage />} />
           <Route path="cards" element={<CardsPage />} />
           <Route path="card-orders" element={<CardOrdersPage />} />

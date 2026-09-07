@@ -18,6 +18,7 @@ const navItems = [
   ]},
   { section: 'الخدمات', items: [
     { to: '/flexy', icon: FiZap, label: 'فليكسي' },
+    { to: '/flexy-gros', icon: FiZap, label: 'فليكسي جملة' },
     { to: '/idoom', icon: FiWifi, label: 'أيدوم' },
     { to: '/cards', icon: FiCreditCard, label: 'إدارة البطاقات' },
     { to: '/card-orders', icon: FiFileText, label: 'طلبات البطاقات' },
@@ -222,8 +223,8 @@ export default function Layout() {
             
             // Default roles
             const defaultRolePerms = {
-              'SUPER_GRO': ['dashboard', 'flexy', 'idoom', 'cards', 'card-orders', 'clients', 'transfers', 'stock', 'transactions'],
-              'GROSIST': ['dashboard', 'flexy', 'idoom', 'cards', 'transfers'],
+              'SUPER_GRO': ['dashboard', 'flexy', 'flexy-gros', 'idoom', 'cards', 'card-orders', 'clients', 'transfers', 'stock', 'transactions'],
+              'GROSIST': ['dashboard', 'flexy', 'flexy-gros', 'idoom', 'cards', 'transfers'],
               'COMMERCANT': ['dashboard', 'flexy', 'idoom', 'cards']
             };
 

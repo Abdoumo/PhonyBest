@@ -222,7 +222,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card"
+        style={{
+          margin: '40px 20px',
+          
+        }}
+        >
           <div className="card-header">
             <span className="card-title">{t('نظرة عامة على الإيرادات (30 يومًا)')}</span>
           </div>
