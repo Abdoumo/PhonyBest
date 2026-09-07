@@ -6,21 +6,27 @@ import API from '../api/axios';
 export default function StockPage() {
   const { t } = useLanguage();
   const [stock, setStock] = useState({
-    mobilis: 2450000,
-    djezzy: 1320000,
-    ooredoo: 890000,
-    cards: 466,
-    coupons: 120,
-    idoom: 540000
+    mobilis: 0,
+    djezzy: 0,
+    ooredoo: 0,
+    cards: 0,
+    coupons: 0,
+    idoom: 0
   });
 
   const [loading, setLoading] = useState(false);
 
-  // Here you can add real API fetching if available
-  const load = () => {
+  const load = async () => {
     setLoading(true);
-    // API.get('/stock').then(r => setStock(r.data.stock)).finally(() => setLoading(false));
-    setTimeout(() => setLoading(false), 500);
+    try {
+      const res = await API.get('/stock');
+      if (res.data.success) {
+        setStock(res.data.stock);
+      }
+    } catch (e) {
+      console.error('Failed to load stock data', e);
+    }
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
