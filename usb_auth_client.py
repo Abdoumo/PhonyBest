@@ -48,7 +48,7 @@ except ImportError:
 # Configuration
 # ═══════════════════════════════════════════════════════════════════
 
-DEFAULT_API_URL = "https://bbbackend.duckdns.org/api/v1"
+DEFAULT_API_URL = "https://backend.phonybest.dz//api/v1"
 HEARTBEAT_INTERVAL = 5  # seconds
 SCAN_INTERVAL = 2       # seconds
 AUTH_FILENAME = "security.auth"

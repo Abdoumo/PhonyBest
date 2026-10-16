@@ -1,5 +1,5 @@
 async function testLiveApi() {
-  const BASE_URL = 'https://bbbackend.duckdns.org/api/v1';
+  const BASE_URL = 'https://backend.phonybest.dz//api/v1';
   console.log(`Starting tests against ${BASE_URL}\n`);
 
   try {
@@ -12,7 +12,7 @@ async function testLiveApi() {
     });
     const loginData = await loginRes.json();
     const token = loginData.accessToken;
-    
+
     if (!token) {
       console.log('❌ Login Failed:', loginData);
       return;
@@ -85,13 +85,13 @@ async function testLiveApi() {
     const createRes = await fetch(`${BASE_URL}/users`, {
       method: 'POST',
       headers: authHeaders,
-      body: JSON.stringify({ 
-        username: 'testclient123', 
-        email: 'test@example.com', 
-        password: 'password123', 
-        full_name: 'Test Client', 
-        phone: '0555555555', 
-        role: 'CLIENT' 
+      body: JSON.stringify({
+        username: 'testclient123',
+        email: 'test@example.com',
+        password: 'password123',
+        full_name: 'Test Client',
+        phone: '0555555555',
+        role: 'CLIENT'
       })
     });
     if (createRes.status === 201) {
@@ -101,7 +101,7 @@ async function testLiveApi() {
       const body = await createRes.text();
       console.log(`   Response: ${body}`);
     }
-    
+
   } catch (err) {
     console.error('Error running tests:', err);
   }

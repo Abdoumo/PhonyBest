@@ -1,7 +1,7 @@
 # API Test Report
 
 **Date:** 2026-08-09  
-**Base URL:** `https://bbbackend.duckdns.org/api/v1`  
+**Base URL:** `https://backend.phonybest.dz//api/v1`  
 **Credentials:** admin / admin123
 
 ---
