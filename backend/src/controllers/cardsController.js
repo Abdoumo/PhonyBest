@@ -1,47 +1,76 @@
-const { query } = require('../config/database');
+const { query, pool } = require('../config/database');
 
 const uploadCards = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { cards } = req.body;
     if (!Array.isArray(cards) || cards.length === 0) {
       return res.status(400).json({ error: 'Cards array required' });
     }
 
-    const hasInvalidValue = cards.some(c => !c.value || c.value <= 0);
+    const hasInvalidValue = cards.some(c => !c.value || isNaN(parseFloat(c.value)) || parseFloat(c.value) <= 0);
     if (hasInvalidValue) {
       return res.status(400).json({ error: 'تحتوي البطاقات على قيمة غير صالحة' });
     }
 
-    // Check wallet balance
+    await client.query('BEGIN');
+
+    // Check wallet balance and lock user row
     const totalValue = cards.reduce((sum, c) => sum + parseFloat(c.value || 0), 0);
-    const userRes = await query(`SELECT wallet, role FROM users WHERE id=$1`, [req.user.id]);
+    const userRes = await client.query(`SELECT wallet, role FROM users WHERE id=$1 FOR UPDATE`, [req.user.id]);
+    if (userRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'المستخدم غير موجود' });
+    }
     const wallet = parseFloat(userRes.rows[0].wallet);
     const isAdmin = userRes.rows[0].role === 'ADMIN';
 
     if (!isAdmin && wallet < totalValue) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'الرصيد غير كافٍ لرفع هذه البطاقات' });
-    }
-
-    if (!isAdmin) {
-      await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [totalValue, req.user.id]);
     }
 
     const batchId = `batch_${Date.now()}`;
     let imported = 0, duplicates = 0;
+    let actualChargedValue = 0;
+
     for (const card of cards) {
+      const cardVal = parseFloat(card.value);
       try {
-        await query(
+        await client.query(
           `INSERT INTO cards (serial, pin, operator, value, category, uploaded_by, batch_id) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [card.serial, card.pin, card.operator, card.value, card.category || null, req.user.id, batchId]
+          [card.serial, card.pin, card.operator, cardVal, card.category || null, req.user.id, batchId]
         );
         imported++;
+        actualChargedValue += cardVal;
       } catch (e) {
-        if (e.code === '23505') duplicates++; else throw e;
+        if (e.code === '23505') {
+          duplicates++;
+        } else {
+          throw e;
+        }
       }
     }
+
+    if (!isAdmin && actualChargedValue > 0) {
+      const deductRes = await client.query(
+        `UPDATE users SET wallet = wallet - $1 WHERE id=$2 AND wallet >= $1 RETURNING wallet`,
+        [actualChargedValue, req.user.id]
+      );
+      if (deductRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'الرصيد غير كافٍ لرفع هذه البطاقات' });
+      }
+    }
+
+    await client.query('COMMIT');
     res.json({ success: true, imported, duplicates, batchId });
   } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Upload cards error:', err);
     res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
   }
 };
 
@@ -107,24 +136,32 @@ const getStock = async (req, res) => {
     `, [req.user.id]);
     const my_stock_summary = myStockRes.rows;
 
-    res.json({ success: true, cards: result.rows, summary: summary.rows, store_summary, my_stock_summary, pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / limit) } });
+    // Security Masking: Mask PIN numbers in general stock listings to prevent bulk credential scraping
+    const safeCards = result.rows.map(card => ({
+      ...card,
+      pin: card.pin ? (String(card.pin).length > 4 ? `****${String(card.pin).slice(-4)}` : '****') : null
+    }));
+
+    res.json({ success: true, cards: safeCards, summary: summary.rows, store_summary, my_stock_summary, pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / limit) } });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 };
 
 const buyCards = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { operator, value, quantity } = req.body;
     const qty = parseInt(quantity);
+    const numValue = parseFloat(value);
     
-    if (!qty || qty <= 0 || !value || value <= 0) {
+    if (!qty || isNaN(qty) || qty <= 0 || !numValue || isNaN(numValue) || !isFinite(numValue) || numValue <= 0) {
       return res.status(400).json({ error: 'الكمية أو القيمة غير صالحة' });
     }
 
-    let totalCost = parseFloat(value) * qty;
+    let totalCost = numValue * qty;
     let baseTotal = totalCost;
 
     // Check commission offer
-    const commResult = await query(
+    const commResult = await client.query(
       `SELECT * FROM commission_offers WHERE service = 'card' AND operator = $1 AND role = $2 LIMIT 1`,
       [operator, req.user.role]
     );
@@ -144,96 +181,174 @@ const buyCards = async (req, res) => {
       }
     }
 
-    const userRes = await query(`SELECT wallet, role FROM users WHERE id=$1`, [req.user.id]);
-    const wallet = parseFloat(userRes.rows[0].wallet);
-    const isAdmin = userRes.rows[0].role === 'ADMIN';
-    if (!isAdmin && wallet < totalCost) return res.status(400).json({ error: 'الرصيد غير كافٍ لشراء هذه البطاقات' });
+    const isAdmin = req.user.role === 'ADMIN';
 
-    const cards = await query(
-      `SELECT id FROM cards WHERE operator=$1 AND value=$2 AND status='available' AND uploaded_by != $3 LIMIT $4`,
-      [operator, value, req.user.id, qty]
+    await client.query('BEGIN');
+
+    // 1. Lock and fetch available cards exclusively (prevent race condition / double-spending)
+    const cards = await client.query(
+      `SELECT id FROM cards 
+       WHERE operator = $1 AND value = $2 AND status = 'available' AND uploaded_by != $3 
+       LIMIT $4 
+       FOR UPDATE SKIP LOCKED`,
+      [operator, numValue, req.user.id, qty]
     );
 
-    if (cards.rows.length < qty) return res.status(400).json({ error: 'لا يوجد عدد كافٍ من البطاقات المتاحة' });
-
-    const cardIds = cards.rows.map(c => c.id);
-
-    if (!isAdmin) {
-      await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [totalCost, req.user.id]);
+    if (cards.rows.length < qty) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'لا يوجد عدد كافٍ من البطاقات المتاحة حالياً' });
     }
-    await query(`UPDATE cards SET uploaded_by=$1 WHERE id = ANY($2::int[])`, [req.user.id, cardIds]);
-    await query(
+
+    // 2. Atomic wallet deduction
+    if (!isAdmin) {
+      const deductRes = await client.query(
+        'UPDATE users SET wallet = wallet - $1 WHERE id = $2 AND wallet >= $1 RETURNING wallet',
+        [totalCost, req.user.id]
+      );
+      if (deductRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'الرصيد غير كافٍ لشراء هذه البطاقات' });
+      }
+    }
+
+    // 3. Transfer cards to buyer
+    const cardIds = cards.rows.map(c => c.id);
+    await client.query(`UPDATE cards SET uploaded_by = $1 WHERE id = ANY($2::int[])`, [req.user.id, cardIds]);
+
+    // 4. Record transaction
+    await client.query(
       `INSERT INTO transactions (type, operator, amount, cost, profit, status, client_id, processed_by, metadata) 
        VALUES ('buy_cards', $1, $2, $3, $4, 'success', $5, $5, $6)`,
-      [operator, baseTotal, adminCost, adminProfit, req.user.id, JSON.stringify({ quantity: qty, value, paid: totalCost })]
+      [operator, baseTotal, adminCost, adminProfit, req.user.id, JSON.stringify({ quantity: qty, value: numValue, paid: totalCost })]
     );
 
+    await client.query('COMMIT');
     res.json({ success: true, message: 'تم شراء البطاقات بنجاح' });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('Buy cards error:', err);
     res.status(500).json({ error: err.message || 'Server error' });
+  } finally {
+    client.release();
   }
 };
 
 const transferBulkCards = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { operator, value, quantity, client_id } = req.body;
     const qty = parseInt(quantity);
+    const numValue = parseFloat(value);
+    const targetClientId = parseInt(client_id);
     
-    if (!qty || qty <= 0 || !value || value <= 0 || !client_id) {
+    if (!qty || isNaN(qty) || qty <= 0 || !numValue || isNaN(numValue) || numValue <= 0 || !targetClientId || isNaN(targetClientId) || !operator) {
       return res.status(400).json({ error: 'بيانات غير صالحة' });
     }
 
-    const cards = await query(
-      `SELECT id FROM cards WHERE operator=$1 AND value=$2 AND status='available' AND uploaded_by=$3 LIMIT $4`,
-      [operator, value, req.user.id, qty]
+    await client.query('BEGIN');
+
+    // Verify recipient user exists
+    const recipientCheck = await client.query('SELECT id FROM users WHERE id = $1', [targetClientId]);
+    if (recipientCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'المستلم غير موجود' });
+    }
+
+    // Select and lock cards atomically to prevent race condition/double assignment
+    const cards = await client.query(
+      `SELECT id FROM cards WHERE operator=$1 AND value=$2 AND status='available' AND uploaded_by=$3 LIMIT $4 FOR UPDATE SKIP LOCKED`,
+      [operator, numValue, req.user.id, qty]
     );
 
     if (cards.rows.length < qty) {
-      return res.status(400).json({ error: 'لا يوجد عدد كافٍ من البطاقات في مخزونك' });
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'لا يوجد عدد كافٍ من البطاقات المتوفرة في مخزونك' });
     }
 
     const cardIds = cards.rows.map(c => c.id);
 
-    await query(`UPDATE cards SET uploaded_by=$1 WHERE id = ANY($2::int[])`, [client_id, cardIds]);
+    await client.query(`UPDATE cards SET uploaded_by=$1 WHERE id = ANY($2::int[])`, [targetClientId, cardIds]);
     
     // Log the transaction
-    const totalValue = parseFloat(value) * qty;
-    await query(
+    const totalValue = numValue * qty;
+    await client.query(
       `INSERT INTO transactions (type, operator, amount, status, client_id, processed_by, metadata) 
        VALUES ('transfer_cards', $1, $2, 'success', $3, $4, $5)`,
-      [operator, totalValue, client_id, req.user.id, JSON.stringify({ quantity: qty, value: value })]
+      [operator, totalValue, targetClientId, req.user.id, JSON.stringify({ quantity: qty, value: numValue })]
     );
 
+    await client.query('COMMIT');
     res.json({ success: true, message: 'تم تحويل البطاقات بنجاح' });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('Transfer bulk cards error:', err);
     res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
   }
 };
 
 const sellCard = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { operator, value, client_id } = req.body;
+    const numValue = parseFloat(value);
+    if (!numValue || isNaN(numValue) || !isFinite(numValue) || numValue <= 0 || !operator) {
+      return res.status(400).json({ error: 'بيانات غير صالحة' });
+    }
 
-    const userRes = await query(`SELECT wallet, role FROM users WHERE id=$1`, [req.user.id]);
+    await client.query('BEGIN');
+
+    const userRes = await client.query(`SELECT wallet, role FROM users WHERE id=$1 FOR UPDATE`, [req.user.id]);
+    if (userRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'المستخدم غير موجود' });
+    }
     const wallet = parseFloat(userRes.rows[0].wallet);
     const isSellAdmin = userRes.rows[0].role === 'ADMIN';
-    if (!isSellAdmin && wallet < parseFloat(value)) {
+    if (!isSellAdmin && wallet < numValue) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام العملية' });
     }
 
-    const card = await query(`SELECT * FROM cards WHERE operator=$1 AND value=$2 AND status='available' AND uploaded_by=$3 LIMIT 1`, [operator, value, req.user.id]);
-    if (card.rows.length === 0) return res.status(404).json({ error: 'No cards available in your stock' });
+    // Lock single available card to prevent double-spending
+    const cardRes = await client.query(
+      `SELECT * FROM cards WHERE operator=$1 AND value=$2 AND status='available' AND uploaded_by=$3 LIMIT 1 FOR UPDATE SKIP LOCKED`,
+      [operator, numValue, req.user.id]
+    );
+    if (cardRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'لا توجد بطاقات متوفرة في مخزونك' });
+    }
+    const card = cardRes.rows[0];
 
     if (!isSellAdmin) {
-      await query(`UPDATE users SET wallet = wallet - $1 WHERE id=$2`, [value, req.user.id]);
+      const deductRes = await client.query(
+        `UPDATE users SET wallet = wallet - $1 WHERE id=$2 AND wallet >= $1 RETURNING wallet`,
+        [numValue, req.user.id]
+      );
+      if (deductRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام العملية' });
+      }
     }
-    await query(`UPDATE cards SET status='sold', sold_to=$1, sold_at=NOW() WHERE id=$2`, [client_id || req.user.id, card.rows[0].id]);
-    await query(`INSERT INTO transactions (type,operator,amount,status,client_id,processed_by,metadata) VALUES ('card',$1,$2,'success',$3,$4,$5)`,
-      [operator, value, client_id || req.user.id, req.user.id, JSON.stringify({ card_id: card.rows[0].id })]);
-    res.json({ success: true, card: { ...card.rows[0], status: 'sold' } });
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+
+    const targetClientId = client_id ? parseInt(client_id) : req.user.id;
+    await client.query(`UPDATE cards SET status='sold', sold_to=$1, sold_at=NOW() WHERE id=$2`, [targetClientId, card.id]);
+    await client.query(
+      `INSERT INTO transactions (type,operator,amount,status,client_id,processed_by,metadata) VALUES ('card',$1,$2,'success',$3,$4,$5)`,
+      [operator, numValue, targetClientId, req.user.id, JSON.stringify({ card_id: card.id })]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, card: { ...card, status: 'sold' } });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Sell card error:', err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
 };
 
 const markCardUsed = async (req, res) => {
@@ -249,27 +364,52 @@ const markCardUsed = async (req, res) => {
 };
 
 const sendSpecificCard = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { client_id } = req.body;
+    const targetClientId = parseInt(client_id);
 
-    if (!client_id) {
+    if (!targetClientId || isNaN(targetClientId)) {
       return res.status(400).json({ error: 'Client ID is required' });
     }
 
-    const cardRes = await query(`SELECT * FROM cards WHERE id=$1 AND status='available' AND uploaded_by=$2`, [id, req.user.id]);
-    if (cardRes.rows.length === 0) return res.status(400).json({ error: 'Card not available or not owned by you' });
+    await client.query('BEGIN');
+
+    const recipientCheck = await client.query('SELECT id FROM users WHERE id = $1', [targetClientId]);
+    if (recipientCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'المستلم غير موجود' });
+    }
+
+    const cardRes = await client.query(
+      `SELECT * FROM cards WHERE id=$1 AND status='available' AND uploaded_by=$2 FOR UPDATE SKIP LOCKED`,
+      [id, req.user.id]
+    );
+    if (cardRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Card not available or not owned by you' });
+    }
     const card = cardRes.rows[0];
 
     // Transfer the card
-    await query(`UPDATE cards SET uploaded_by=$1 WHERE id=$2`, [client_id, id]);
+    await client.query(`UPDATE cards SET uploaded_by=$1 WHERE id=$2`, [targetClientId, id]);
 
     // Log the transaction
-    await query(`INSERT INTO transactions (type, operator, amount, status, client_id, processed_by, metadata) VALUES ('transfer_cards', $1, $2, 'success', $3, $4, $5)`,
-      [card.operator, card.value, client_id, req.user.id, JSON.stringify({ card_id: id })]);
+    await client.query(
+      `INSERT INTO transactions (type, operator, amount, status, client_id, processed_by, metadata) VALUES ('transfer_cards', $1, $2, 'success', $3, $4, $5)`,
+      [card.operator, card.value, targetClientId, req.user.id, JSON.stringify({ card_id: id })]
+    );
       
+    await client.query('COMMIT');
     res.json({ success: true, message: 'تم إرسال البطاقة بنجاح' });
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Send specific card error:', err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
 };
 
 const getCardTransactions = async (req, res) => {

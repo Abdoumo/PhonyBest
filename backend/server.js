@@ -14,23 +14,70 @@ app.set('trust proxy', true);
 app.use(cookieParser());
 const server = http.createServer(app);
 
+// Security & CORS Configuration
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+].filter(Boolean);
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // Allow non-browser requests (e.g. server-to-server, mobile, curl)
+  if (allowedOrigins.includes(origin)) return true;
+  // Allow localhost with any dev port or same-origin domain
+  if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+    return true;
+  }
+  return false;
+};
+
 // Socket.IO
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: {
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) callback(null, true);
+      else callback(new Error('Socket connection blocked by CORS'));
+    },
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
 });
 require('./src/sockets')(io);
 
 // Make io accessible to routes
 app.set('io', io);
 
-// Security middleware
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-// Fix CORS misconfiguration (prevent wildcard origin with credentials)
+// Security middleware (Helmet with HSTS and CSP)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'same-site' },
+  hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      connectSrc: ["'self'", 'ws:', 'wss:', 'https:'],
+      fontSrc: ["'self'", 'data:', 'https:'],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'self'"]
+    }
+  }
+}));
+
 const corsOptions = {
   origin: function (origin, callback) {
-    callback(null, true); // Safely reflect the actual origin
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS policy'));
+    }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 app.use(cors(corsOptions));
 app.use(morgan('dev'));
@@ -48,12 +95,16 @@ app.use('/api/', limiter);
 // Strict rate limiting for authentication (Brute Force Protection)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 failed/success login attempts per window
+  max: 10, // Limit each IP to 10 login attempts per window
   message: { error: 'Too many login attempts, please try again after 15 minutes' },
 });
 
-// Static files
-app.use('/uploads', express.static('uploads'));
+// Static files with nosniff header protection
+app.use('/uploads', express.static('uploads', {
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+  }
+}));
 
 // Swagger UI
 const swaggerUi = require('swagger-ui-express');
@@ -80,23 +131,6 @@ app.use('/api/v1/wss', require('./src/routes/wssNodes'));
 app.use('/api/v1/analytics', require('./src/routes/analytics'));
 app.use('/api/v1/stock', require('./src/routes/stock'));
 app.use('/api/v1/admin/offer-mappings', require('./src/routes/offerMappings'));
-
-app.get('/api/v1/debug-usb', async (req, res) => {
-  const { query } = require('./src/config/database');
-  const allRows = await query("SELECT * FROM usb_sessions ORDER BY created_at DESC LIMIT 10");
-  const authQuery = await query(`
-        SELECT session_id, user_id, status, last_heartbeat, NOW() as current_time_db
-        FROM usb_sessions
-        WHERE user_id = 1
-          AND status = 'active'
-          AND last_heartbeat >= NOW() - INTERVAL '15 seconds'
-        ORDER BY last_heartbeat DESC LIMIT 1
-      `);
-  res.json({
-    allRows: allRows.rows,
-    authQueryResult: authQuery.rows
-  });
-});
 
 // Health check
 app.get('/api/health', (req, res) => {

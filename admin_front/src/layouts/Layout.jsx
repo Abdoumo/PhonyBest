@@ -99,7 +99,11 @@ export default function Layout() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const socket = socketIO(import.meta.env.VITE_BACKEND_URL, { transports: ['websocket', 'polling'] });
+    const token = localStorage.getItem('accessToken');
+    const socket = socketIO(import.meta.env.VITE_BACKEND_URL, {
+      transports: ['websocket', 'polling'],
+      auth: { token }
+    });
     
     socket.on('connect', () => {
       socket.emit('join_room', user.id);

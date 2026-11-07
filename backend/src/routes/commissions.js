@@ -4,7 +4,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 router.get('/', getCommissions);
-router.post('/', authorize('ADMIN','SUPER_GRO'), setCommission);
-router.delete('/:id', authorize('ADMIN','SUPER_GRO'), deleteCommission);
+router.post('/', authorize('ADMIN'), setCommission);
+router.delete('/:id', authorize('ADMIN'), deleteCommission);
 
 module.exports = router;

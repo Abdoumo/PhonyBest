@@ -11,7 +11,8 @@ const rechargeIdoom = async (req, res) => {
     const { ssuid, phone_number, amount, type } = req.body;
     const userId = req.user.id;
 
-    if (!amount || amount <= 0) {
+    const numAmount = parseFloat(amount);
+    if (!amount || isNaN(numAmount) || !isFinite(numAmount) || numAmount <= 0) {
       return res.status(400).json({ error: 'المبلغ غير صالح' });
     }
 
@@ -21,24 +22,24 @@ const rechargeIdoom = async (req, res) => {
       return res.status(400).json({ error: 'Invalid Idoom type' });
     }
 
-    // Check wallet
+    // Atomic Balance Deduction (Anti-Race Condition & Double-Spending Protection)
     const isAdmin = req.user.role === 'ADMIN';
-    const userResult = await query('SELECT wallet FROM users WHERE id = $1', [userId]);
-    if (!isAdmin && parseFloat(userResult.rows[0].wallet) < amount) {
-      return res.status(400).json({ error: 'Insufficient wallet balance' });
+    if (!isAdmin) {
+      const deductResult = await query(
+        'UPDATE users SET wallet = wallet - $1 WHERE id = $2 AND wallet >= $1 RETURNING wallet',
+        [numAmount, userId]
+      );
+      if (deductResult.rows.length === 0) {
+        return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام العملية' });
+      }
     }
 
     const txResult = await query(
       `INSERT INTO transactions (type, operator, phone_number, amount, status, client_id, processed_by, metadata)
        VALUES ('idoom', 'idoom', $1, $2, 'processing', $3, $3, $4) RETURNING *`,
-      [phone_number || ssuid, amount, userId, JSON.stringify({ ssuid, type: type || 'adsl' })]
+      [phone_number || ssuid, numAmount, userId, JSON.stringify({ ssuid, type: type || 'adsl' })]
     );
     const transaction = txResult.rows[0];
-
-    // Deduct wallet
-    if (!isAdmin) {
-      await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [amount, userId]);
-    }
 
     // --- Route through ModemGrid ---
     let finalStatus = 'failed';

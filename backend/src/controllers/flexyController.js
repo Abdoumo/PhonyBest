@@ -12,7 +12,8 @@ const sendFlexy = async (req, res) => {
     const userId = req.user.id;
     const serviceType = isGros ? 'flexy_gros' : 'flexy';
 
-    if (!amount || amount <= 0) {
+    const numAmount = parseFloat(amount);
+    if (!amount || isNaN(numAmount) || !isFinite(numAmount) || numAmount <= 0) {
       return res.status(400).json({ error: 'المبلغ غير صالح' });
     }
 
@@ -22,26 +23,25 @@ const sendFlexy = async (req, res) => {
       return res.status(400).json({ error: 'Invalid operator' });
     }
 
-    // Check wallet balance (ADMIN has infinite virtual balance)
+    // Atomic Balance Deduction (Anti-Race Condition & Double-Spending Protection)
     const isAdmin = req.user.role === 'ADMIN';
-    const userResult = await query('SELECT wallet FROM users WHERE id = $1', [userId]);
-    const wallet = parseFloat(userResult.rows[0].wallet);
-    if (!isAdmin && wallet < amount) {
-      return res.status(400).json({ error: 'Insufficient wallet balance' });
+    if (!isAdmin) {
+      const deductResult = await query(
+        'UPDATE users SET wallet = wallet - $1 WHERE id = $2 AND wallet >= $1 RETURNING wallet',
+        [numAmount, userId]
+      );
+      if (deductResult.rows.length === 0) {
+        return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام العملية' });
+      }
     }
 
     // Create transaction (start as 'processing')
     const txResult = await query(
       `INSERT INTO transactions (type, operator, phone_number, amount, offer, sim_used, status, client_id, processed_by)
        VALUES ($1, $2, $3, $4, $5, 'modemgrid', 'processing', $6, $6) RETURNING *`,
-      [serviceType, operator.toLowerCase(), number, amount, offer || null, userId]
+      [serviceType, operator.toLowerCase(), number, numAmount, offer || null, userId]
     );
     const transaction = txResult.rows[0];
-
-    // Deduct wallet (skip for ADMIN)
-    if (!isAdmin) {
-      await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [amount, userId]);
-    }
 
     // --- Route through ModemGrid ---
     let finalStatus = 'failed';
@@ -286,36 +286,49 @@ const bulkFlexy = async (req, res) => {
       return res.status(400).json({ error: 'Operations array required' });
     }
 
-    const hasInvalidAmount = operations.some(op => !op.amount || op.amount <= 0);
+    const hasInvalidAmount = operations.some(op => !op.amount || isNaN(parseFloat(op.amount)) || !isFinite(parseFloat(op.amount)) || parseFloat(op.amount) <= 0);
     if (hasInvalidAmount) {
       return res.status(400).json({ error: 'يحتوي الطلب على مبلغ غير صالح' });
     }
 
     const totalAmount = operations.reduce((sum, op) => sum + parseFloat(op.amount || 0), 0);
-    const isAdminBulk = req.user.role === 'ADMIN';
-    const userResult = await query('SELECT wallet FROM users WHERE id = $1', [req.user.id]);
-    const wallet = parseFloat(userResult.rows[0].wallet);
-
-    if (!isAdminBulk && wallet < totalAmount) {
-      return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام كل العمليات' });
+    if (isNaN(totalAmount) || !isFinite(totalAmount) || totalAmount <= 0) {
+      return res.status(400).json({ error: 'المبلغ الإجمالي غير صالح' });
     }
 
+    // Atomic Balance Deduction (Anti-Race Condition & Double-Spending Protection)
+    const isAdminBulk = req.user.role === 'ADMIN';
     if (!isAdminBulk) {
-      await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [totalAmount, req.user.id]);
+      const deductResult = await query(
+        'UPDATE users SET wallet = wallet - $1 WHERE id = $2 AND wallet >= $1 RETURNING wallet',
+        [totalAmount, req.user.id]
+      );
+      if (deductResult.rows.length === 0) {
+        return res.status(400).json({ error: 'الرصيد غير كافٍ لإتمام كل العمليات' });
+      }
     }
 
     const results = [];
+    let failedAmount = 0;
+
     for (const op of operations) {
+      const opAmount = parseFloat(op.amount);
       try {
         const txResult = await query(
           `INSERT INTO transactions (type, operator, phone_number, amount, offer, status, client_id, processed_by)
            VALUES ('flexy', $1, $2, $3, $4, 'pending', $5, $5) RETURNING *`,
-          [op.operator, op.number, op.amount, op.offer || null, req.user.id]
+          [op.operator, op.number, opAmount, op.offer || null, req.user.id]
         );
         results.push({ ...txResult.rows[0], queued: true });
       } catch (e) {
+        failedAmount += opAmount;
         results.push({ number: op.number, error: e.message });
       }
+    }
+
+    // If any individual insertion failed, refund that portion
+    if (failedAmount > 0 && !isAdminBulk) {
+      await query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [failedAmount, req.user.id]);
     }
 
     res.json({ success: true, results, total: results.length });

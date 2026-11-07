@@ -100,7 +100,11 @@ export default function ModemGridPage() {
 
   // Real-time Socket.IO updates
   useEffect(() => {
-    const socket = socketIO(import.meta.env.VITE_BACKEND_URL, { transports: ['websocket', 'polling'] });
+    const token = localStorage.getItem('accessToken');
+    const socket = socketIO(import.meta.env.VITE_BACKEND_URL, {
+      transports: ['websocket', 'polling'],
+      auth: { token }
+    });
     socket.on('connect', () => socket.emit('join_admin'));
 
     socket.on('wss_node_connected', () => fetchData());

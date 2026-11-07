@@ -4,6 +4,9 @@ const getHistory = async (req, res) => {
   try {
     const { search, from_user, to_user, type, status, min_amount, max_amount, date_from, date_to, direction } = req.query;
     const currentUserId = req.user ? req.user.id : 0;
+    const params = [currentUserId];
+    let paramIndex = 2;
+
     let sql = `
       SELECT t.id, t.created_at as date, 
              t.from_user as from_user_id, t.to_user as to_user_id,
@@ -12,15 +15,13 @@ const getHistory = async (req, res) => {
              u1.username as from_user,
              u2.username as to_user,
              t.amount, t.type, t.status, t.notes,
-             CASE WHEN t.to_user = ${currentUserId} THEN true ELSE false END as is_incoming,
-             CASE WHEN t.from_user = ${currentUserId} THEN true ELSE false END as is_outgoing
+             CASE WHEN t.to_user = $1 THEN true ELSE false END as is_incoming,
+             CASE WHEN t.from_user = $1 THEN true ELSE false END as is_outgoing
       FROM transfers t
       LEFT JOIN users u1 ON t.from_user = u1.id
       LEFT JOIN users u2 ON t.to_user = u2.id
       WHERE 1=1
     `;
-    const params = [];
-    let paramIndex = 1;
 
     // Direction filter: incoming vs outgoing
     if (direction === 'outgoing' && req.user) {
@@ -116,7 +117,14 @@ const removeBalance = async (req, res) => {
     }
     const userRes = await query('SELECT wallet FROM users WHERE id=$1', [user_id]);
     if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    await query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [numAmount, user_id]);
+    
+    const deductRes = await query(
+      'UPDATE users SET wallet = wallet - $1 WHERE id = $2 AND wallet >= $1 RETURNING wallet',
+      [numAmount, user_id]
+    );
+    if (deductRes.rows.length === 0) {
+      return res.status(400).json({ error: 'رصيد المستخدم غير كافٍ للخصم' });
+    }
     await query(`INSERT INTO transfers (from_user,to_user,amount,type,notes,status) VALUES ($1,$2,$3,'withdrawal',$4,'completed')`, [user_id, req.user.id, numAmount, notes||null]);
     await query(`INSERT INTO transactions (type,amount,status,client_id,processed_by) VALUES ('wallet_remove',$1,'success',$2,$3)`, [numAmount, user_id, req.user.id]);
     const user = await query('SELECT id,username,wallet,debt FROM users WHERE id=$1', [user_id]);
@@ -142,7 +150,7 @@ const transfer = async (req, res) => {
 
     // 1. Validate Amount (Step 6 requirement: If amount is empty, <= 0 or negative, reject)
     const numAmount = parseFloat(amount);
-    if (!amount || isNaN(numAmount) || numAmount <= 0) {
+    if (!amount || isNaN(numAmount) || !isFinite(numAmount) || numAmount <= 0) {
       return res.status(400).json({ error: 'المبلغ غير صالح، يجب أن يكون أكبر من 0 د.ج' });
     }
 
@@ -194,16 +202,21 @@ const transfer = async (req, res) => {
     // 4. Begin DB Transaction
     await client.query('BEGIN');
 
-    const fromRes = await client.query('SELECT id, username, wallet, debt, role FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
-    const sender = fromRes.rows[0];
-    const isSenderAdmin = sender.role === 'ADMIN';
+    // Deterministic row locking order to completely eliminate deadlocks
+    const [firstId, secondId] = req.user.id < recipientId ? [req.user.id, recipientId] : [recipientId, req.user.id];
+    const usersLock = await client.query('SELECT id, username, wallet, debt, role FROM users WHERE id IN ($1, $2) ORDER BY id FOR UPDATE', [firstId, secondId]);
+    const sender = usersLock.rows.find(u => u.id === req.user.id);
+    const recipient = usersLock.rows.find(u => u.id === recipientId);
 
-    const toRes = await client.query('SELECT id, username, wallet, debt, role FROM users WHERE id = $1 FOR UPDATE', [recipientId]);
-    if (toRes.rows.length === 0) {
+    if (!sender) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'المستخدم المرسل غير موجود' });
+    }
+    if (!recipient) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'المستخدم المستلم غير موجود' });
     }
-    const recipient = toRes.rows[0];
+    const isSenderAdmin = sender.role === 'ADMIN';
 
     // 5. Balance & Debt Logic depending on Type
     if (type === 'debt_recovery') {
@@ -229,6 +242,10 @@ const transfer = async (req, res) => {
       }
     } else if (type === 'payment_recovery') {
       // استرداد دفع: Récupérer une somme liée à un paiement (reverse payment)
+      if (!isSenderAdmin && parseFloat(sender.wallet) < numAmount) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'رصيدك الحالي غير كافٍ لإتمام عملية الاسترداد' });
+      }
       await client.query('UPDATE users SET debt = debt + $1 WHERE id = $2', [numAmount, recipient.id]);
       if (!isSenderAdmin) {
         await client.query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [numAmount, sender.id]);
@@ -402,13 +419,25 @@ const selfRecharge = async (req, res) => {
       );
     }
 
-    const parentId = user.parent_id || 1; // Default to admin
+    const parentId = (user.parent_id && user.parent_id !== user.id) ? user.parent_id : 1;
 
-    // Deduct parent wallet if parent is not admin
-    const parentRes = await client.query('SELECT id, role, wallet FROM users WHERE id = $1', [parentId]);
-    if (parentRes.rows.length > 0 && parentRes.rows[0].role !== 'ADMIN') {
-      if (parseFloat(parentRes.rows[0].wallet) >= numAmount) {
-        await client.query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [numAmount, parentId]);
+    // Deduct parent wallet if parent is not admin, ensuring row lock and balance verification
+    if (parentId !== user.id) {
+      const parentRes = await client.query('SELECT id, role, wallet FROM users WHERE id = $1 FOR UPDATE', [parentId]);
+      if (parentRes.rows.length > 0 && parentRes.rows[0].role !== 'ADMIN') {
+        const parentWallet = parseFloat(parentRes.rows[0].wallet || 0);
+        if (parentWallet < numAmount) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'رصيد الحساب الرئيسي غير كافٍ لتغطية عملية الشحن الذاتي' });
+        }
+        const deductParentRes = await client.query(
+          'UPDATE users SET wallet = wallet - $1 WHERE id = $2 AND wallet >= $1 RETURNING wallet',
+          [numAmount, parentId]
+        );
+        if (deductParentRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'رصيد الحساب الرئيسي غير كافٍ لتغطية عملية الشحن الذاتي' });
+        }
       }
     }
 
@@ -458,12 +487,21 @@ const transferProfit = async (req, res) => {
     const { amount, notes } = req.body;
     const numAmount = parseFloat(amount);
 
-    if (isNaN(numAmount) || numAmount <= 0) {
+    if (isNaN(numAmount) || !isFinite(numAmount) || numAmount <= 0) {
       return res.status(400).json({ error: 'المبلغ غير صالح، يجب أن يكون أكبر من 0 د.ج' });
     }
 
-    // Calculate total accumulated profit from transactions
-    const profitRes = await query(
+    await client.query('BEGIN');
+
+    // Lock user row first to serialize concurrent profit transfers
+    const userLock = await client.query('SELECT id, wallet FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    if (userLock.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'المستخدم غير موجود' });
+    }
+
+    // Calculate total accumulated profit from transactions within the transaction
+    const profitRes = await client.query(
       `SELECT COALESCE(SUM(profit), 0) as total_profit 
        FROM transactions 
        WHERE (client_id = $1 OR processed_by = $1) AND status = 'success'`,
@@ -471,8 +509,8 @@ const transferProfit = async (req, res) => {
     );
     const totalProfit = parseFloat(profitRes.rows[0].total_profit || 0);
 
-    // Calculate previously transferred profit to avoid double-transferring profit
-    const prevTransferredRes = await query(
+    // Calculate previously transferred profit inside the transaction
+    const prevTransferredRes = await client.query(
       `SELECT COALESCE(SUM(amount), 0) as transferred 
        FROM transfers 
        WHERE to_user = $1 AND type = 'profit_transfer' AND status = 'completed'`,
@@ -482,12 +520,11 @@ const transferProfit = async (req, res) => {
     const availableProfit = Math.max(0, totalProfit - prevTransferred);
 
     if (req.user.role !== 'ADMIN' && numAmount > availableProfit) {
+      await client.query('ROLLBACK');
       return res.status(400).json({
         error: `المبلغ المطلوب (${numAmount.toLocaleString()} د.ج) أكبر من الأرباح المتاحة للتحويل (${availableProfit.toLocaleString()} د.ج)`
       });
     }
-
-    await client.query('BEGIN');
 
     // Credit the user's wallet
     await client.query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [numAmount, userId]);

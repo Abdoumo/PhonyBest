@@ -42,9 +42,18 @@ const authenticate = async (req, res, next) => {
       let hasValidUsbSession = sessionRes.rows.length > 0;
 
       if (!hasValidUsbSession) {
-        // Allow specific routes to bypass USB check so the frontend can still render the "Please Insert USB" screen gracefully
-        const allowedPaths = ['/me', '/logout', '/session-status', '/link-session'];
-        const isAllowed = allowedPaths.some(p => req.originalUrl.includes(p));
+        // Strict whitelist: Only exact authentication/session status endpoints may proceed
+        // Using exact path to prevent query-parameter URL inclusion bypasses (e.g. ?bypass=/me)
+        const cleanPath = req.baseUrl ? `${req.baseUrl}${req.path}` : req.path;
+        const allowedExactPaths = [
+          '/api/v1/auth/me',
+          '/api/v1/auth/logout',
+          '/api/v1/usb-auth/session-status',
+          '/api/v1/usb-auth/my-key',
+          '/api/v1/usb-auth/my-session',
+          '/api/v1/usb-auth/verify'
+        ];
+        const isAllowed = allowedExactPaths.includes(cleanPath);
         
         if (!isAllowed) {
           return res.status(403).json({ error: 'USB Hardware Key Required', code: 'USB_AUTH_REQUIRED' });

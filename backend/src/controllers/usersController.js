@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { query } = require('../config/database');
+const { query, pool } = require('../config/database');
 
 /**
  * GET /api/v1/users
@@ -117,6 +117,9 @@ const createUser = async (req, res) => {
 
     if (req.user.role !== 'ADMIN') {
       parent_id = req.user.id;
+      // Non-admins cannot initialize a user with arbitrary balance or debt limits
+      wallet = 0;
+      debt_limit = 0;
       // Prevent privilege escalation: restrict what roles they can create
       const allowedRoles = {
         'SUPER_GRO': ['GRO', 'GROSIST', 'COMMERCANT', 'CLIENT'],
@@ -129,6 +132,10 @@ const createUser = async (req, res) => {
       if (!userAllowedRoles.includes(role)) {
         return res.status(403).json({ error: 'غير مصرح لك بإنشاء هذا الدور' });
       }
+    } else {
+      // Admin validation
+      wallet = (wallet !== undefined && !isNaN(parseFloat(wallet)) && isFinite(parseFloat(wallet))) ? Math.max(0, parseFloat(wallet)) : 0;
+      debt_limit = (debt_limit !== undefined && !isNaN(parseFloat(debt_limit)) && isFinite(parseFloat(debt_limit))) ? Math.max(0, parseFloat(debt_limit)) : 0;
     }
 
     // Check duplicate
@@ -166,6 +173,10 @@ const updateUser = async (req, res) => {
         return res.status(403).json({ error: 'Access denied' });
       }
       
+      // Strict Anti-Tampering: Non-admins can NEVER directly alter wallet balance or debt limit
+      wallet = null;
+      debt_limit = null;
+
       const targetUserRole = checkOwnership.rows[0].role;
       // If they try to change the role, check if they are allowed
       if (role && role !== targetUserRole) {
@@ -181,6 +192,26 @@ const updateUser = async (req, res) => {
         }
       } else {
         role = targetUserRole; // keep existing role if not changed
+      }
+    } else {
+      // Protect root admin from accidental demotion or disabling
+      if (parseInt(userId) === 1) {
+        if (role && role !== 'ADMIN') {
+          return res.status(400).json({ error: 'لا يمكن تغيير رتبة الحساب الإداري الرئيسي' });
+        }
+        if (status && status !== 'active') {
+          return res.status(400).json({ error: 'لا يمكن تعطيل الحساب الإداري الرئيسي' });
+        }
+      }
+
+      // Validate wallet and debt_limit if provided by admin
+      if (wallet !== undefined && wallet !== null) {
+        const numW = parseFloat(wallet);
+        wallet = (!isNaN(numW) && isFinite(numW) && numW >= 0) ? numW : null;
+      }
+      if (debt_limit !== undefined && debt_limit !== null) {
+        const numD = parseFloat(debt_limit);
+        debt_limit = (!isNaN(numD) && isFinite(numD) && numD >= 0) ? numD : null;
       }
     }
 
@@ -240,7 +271,15 @@ const updateUser = async (req, res) => {
  */
 const deleteUser = async (req, res) => {
   try {
-    const result = await query('DELETE FROM users WHERE id = $1 RETURNING id', [req.params.id]);
+    const targetId = parseInt(req.params.id);
+    if (!targetId || isNaN(targetId)) {
+      return res.status(400).json({ error: 'معرف المستخدم غير صالح' });
+    }
+    // Prevent deleting root super-admin or caller's own account
+    if (targetId === 1 || targetId === req.user.id) {
+      return res.status(403).json({ error: 'لا يمكن حذف الحساب الإداري الرئيسي أو حسابك الشخصي' });
+    }
+    const result = await query('DELETE FROM users WHERE id = $1 RETURNING id', [targetId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -250,12 +289,14 @@ const deleteUser = async (req, res) => {
   }
 };
 const manageDebt = async (req, res) => {
+  const client = await pool.connect();
   try {
     const userId = req.params.id;
-    
+    const isCallerAdmin = req.user.role === 'ADMIN';
+
     // IDOR Protection: Enforce hierarchy for debt management
-    if (req.user.role !== 'ADMIN') {
-      const checkOwnership = await query('SELECT id FROM users WHERE id = $1 AND parent_id = $2', [userId, req.user.id]);
+    if (!isCallerAdmin) {
+      const checkOwnership = await client.query('SELECT id FROM users WHERE id = $1 AND parent_id = $2', [userId, req.user.id]);
       if (checkOwnership.rows.length === 0) {
         return res.status(403).json({ error: 'Access denied. You can only manage debt for your direct clients.' });
       }
@@ -264,29 +305,57 @@ const manageDebt = async (req, res) => {
     // type: 'add_debt' (user took credit), 'pay_debt' (user paid back)
     const { type, amount, notes } = req.body;
     const value = parseFloat(amount);
-    if (!value || value <= 0) return res.status(400).json({ error: 'مبلغ غير صالح' });
+    if (!value || isNaN(value) || !isFinite(value) || value <= 0) {
+      return res.status(400).json({ error: 'مبلغ غير صالح' });
+    }
+
+    await client.query('BEGIN');
 
     if (type === 'add_debt') {
-      // User took debt -> add to their debt, optionally add to their wallet if they took money as balance
-      await query('UPDATE users SET debt = debt + $1, wallet = wallet + $1 WHERE id = $2', [value, userId]);
-      await query(`INSERT INTO transactions (type, amount, status, client_id, processed_by, metadata) 
-                   VALUES ('debt', $1, 'success', $2, $3, $4)`, 
-                   [value, userId, req.user.id, JSON.stringify({ action: 'add', notes })]);
+      // If caller is not admin, verify caller has enough wallet and deduct it
+      if (!isCallerAdmin) {
+        const parentRes = await client.query('SELECT wallet FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+        const parentWallet = parseFloat(parentRes.rows[0]?.wallet || 0);
+        if (parentWallet < value) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'رصيد محفظتك غير كافٍ لإعطاء دين ورصيد لهذا العميل' });
+        }
+        await client.query('UPDATE users SET wallet = wallet - $1 WHERE id = $2', [value, req.user.id]);
+      }
+
+      // Add to client's debt and wallet
+      await client.query('UPDATE users SET debt = debt + $1, wallet = wallet + $1, updated_at = NOW() WHERE id = $2', [value, userId]);
+      await client.query(
+        `INSERT INTO transactions (type, amount, status, client_id, processed_by, metadata) 
+         VALUES ('debt', $1, 'success', $2, $3, $4)`, 
+        [value, userId, req.user.id, JSON.stringify({ action: 'add', notes })]
+      );
     } else if (type === 'pay_debt') {
-      // User paid debt -> reduce their debt
-      await query('UPDATE users SET debt = debt - $1 WHERE id = $2', [value, userId]);
-      await query(`INSERT INTO transactions (type, amount, status, client_id, processed_by, metadata) 
-                   VALUES ('debt', $1, 'success', $2, $3, $4)`, 
-                   [-value, userId, req.user.id, JSON.stringify({ action: 'pay', notes })]);
+      // Child pays back debt -> reduce child debt, and if caller is not admin, refund/credit parent's wallet
+      if (!isCallerAdmin) {
+        await client.query('UPDATE users SET wallet = wallet + $1 WHERE id = $2', [value, req.user.id]);
+      }
+      await client.query('UPDATE users SET debt = GREATEST(0, debt - $1), updated_at = NOW() WHERE id = $2', [value, userId]);
+      await client.query(
+        `INSERT INTO transactions (type, amount, status, client_id, processed_by, metadata) 
+         VALUES ('debt', $1, 'success', $2, $3, $4)`, 
+        [-value, userId, req.user.id, JSON.stringify({ action: 'pay', notes })]
+      );
     } else {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'نوع العملية غير صالح' });
     }
+
+    await client.query('COMMIT');
 
     const userRes = await query('SELECT debt, wallet FROM users WHERE id = $1', [userId]);
     res.json({ success: true, user: userRes.rows[0], message: 'تم تحديث الديون بنجاح' });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('Manage debt error:', err);
     res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
   }
 };
 
