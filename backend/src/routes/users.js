@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { getUsers, getUser, createUser, updateUser, deleteUser, manageDebt, uploadLogo } = require('../controllers/usersController');
+const { getUsers, getUser, createUser, updateUser, deleteUser, manageDebt, uploadLogo, setSelfRechargeConfig } = require('../controllers/usersController');
 const { authenticate, authorize } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
@@ -35,6 +35,7 @@ router.post('/me/logo', upload.single('logo'), uploadLogo);
 router.post('/', authorize('ADMIN','SUPER_GRO','GRO','GROSIST','COMMERCANT'), createUser);
 router.put('/:id', authorize('ADMIN','SUPER_GRO','GRO','GROSIST','COMMERCANT'), updateUser);
 router.post('/:id/debt', authorize('ADMIN','SUPER_GRO','GRO','GROSIST','COMMERCANT'), manageDebt);
+router.post('/:id/self-recharge-config', authorize('ADMIN','SUPER_GRO','GRO','GROSIST','COMMERCANT'), setSelfRechargeConfig);
 router.delete('/:id', authorize('ADMIN'), deleteUser);
 
 module.exports = router;

@@ -11,6 +11,7 @@ import {
   FiCheck, FiCheckCircle, FiTrash2, FiAlertCircle, FiInfo, FiAlertTriangle, FiRadio, FiLink
 } from 'react-icons/fi';
 import { useLanguage } from '../contexts/LanguageContext';
+import SelfRechargeModal from '../components/SelfRechargeModal';
 
 const navItems = [
   { section: 'الرئيسية', items: [
@@ -68,6 +69,7 @@ export default function Layout() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [showSelfRechargeModal, setShowSelfRechargeModal] = useState(false);
   const notifRef = useRef(null);
 
   useEffect(() => {
@@ -287,6 +289,34 @@ export default function Layout() {
             </div>
           </div>
           <div className="header-right">
+            {(user?.role === 'CLIENT' || user?.role === 'COMMERCANT' || parseFloat(user?.self_recharge_limit || 0) > 0) && (
+              <button
+                className="btn btn-sm btn-secondary"
+                style={{
+                  color: 'var(--success)',
+                  borderColor: 'rgba(16, 185, 129, 0.4)',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontWeight: 700,
+                  padding: '5px 10px'
+                }}
+                onClick={() => setShowSelfRechargeModal(true)}
+                title={t("إجراء شحن ذاتي لرصيدك")}
+              >
+                <FiZap size={14} />
+                <span>{t('شحن ذاتي')}</span>
+                {parseFloat(user?.self_recharge_limit || 0) > 0 && (
+                  <span style={{
+                    fontSize: 11, background: 'var(--success)', color: '#fff',
+                    padding: '1px 6px', borderRadius: 8
+                  }}>
+                    {parseFloat(user.self_recharge_limit).toLocaleString()} {t('د.ج')}
+                  </span>
+                )}
+              </button>
+            )}
             <button className="header-btn" onClick={toggleLang} title={lang === 'ar' ? 'Français' : 'العربية'}>
               <FiGlobe size={16} />
               <span style={{ fontSize: '10px', fontWeight: 'bold', marginLeft: '4px' }}>
@@ -445,6 +475,11 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      <SelfRechargeModal
+        isOpen={showSelfRechargeModal}
+        onClose={() => setShowSelfRechargeModal(false)}
+      />
     </div>
   );
 }

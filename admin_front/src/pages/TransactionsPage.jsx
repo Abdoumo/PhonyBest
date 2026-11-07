@@ -172,7 +172,18 @@ export default function TransactionsPage() {
                 {transactions.map(tx => (
                   <tr key={tx.id}>
                     <td style={{ fontWeight: 600 }}>#{tx.id}</td>
-                    <td><span className="badge-status">{translateType(tx.type)}</span></td>
+                    <td>
+                      <span className="badge-status">{translateType(tx.type)}</span>
+                      {tx.metadata?.transfer_type && (
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {tx.metadata.transfer_type === 'debt' ? 'دين – Dette' :
+                           tx.metadata.transfer_type === 'cash' ? 'نقد – Espèces' :
+                           tx.metadata.transfer_type === 'payment' ? 'دفع – Paiement' :
+                           tx.metadata.transfer_type === 'self_recharge' ? 'شحن الذاتي' :
+                           tx.metadata.transfer_type}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ textTransform: 'capitalize' }}>{tx.operator ? t(tx.operator) : '-'}</td>
                     <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>
                       {tx.type === 'buy_cards' ? 'شراء بطاقات (جملة)' : (tx.phone_number || '-')}

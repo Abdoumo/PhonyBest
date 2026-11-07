@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { FiSend, FiPhone, FiDollarSign } from 'react-icons/fi';
+import {
+  FiSend, FiPhone, FiDollarSign, FiChevronDown, FiChevronUp,
+  FiRefreshCw, FiCpu, FiTrendingUp, FiActivity, FiCheckCircle,
+  FiAlertCircle, FiLayers, FiWifi
+} from 'react-icons/fi';
 import API from '../api/axios';
 
 const operators = [
@@ -8,8 +12,6 @@ const operators = [
   { id: 'djezzy', name: 'جيزي', color: '#e4002b', prefix: '07' },
   { id: 'ooredoo', name: 'أوريدو', color: '#ed1c24', prefix: '05' },
 ];
-
-const amounts = [100, 200, 500, 1000, 1500, 2000, 5000, 10000];
 
 const operatorOffers = {
   mobilis: [
@@ -43,6 +45,19 @@ export default function FlexyGrosPage() {
   const [selectedModem, setSelectedModem] = useState('');
   const [history, setHistory] = useState([]);
 
+  // Détails Flexy gros state
+  const [grosDetails, setGrosDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(true);
+
+  const fetchGrosDetails = () => {
+    setDetailsLoading(true);
+    API.get('/flexy/gros-details')
+      .then(res => setGrosDetails(res.data.details || null))
+      .catch(err => console.error('Error fetching gros details:', err))
+      .finally(() => setDetailsLoading(false));
+  };
+
   const fetchHistory = () => {
     API.get('/transactions?type=flexy_gros&limit=10')
       .then(res => setHistory(res.data.transactions || []))
@@ -51,7 +66,6 @@ export default function FlexyGrosPage() {
 
   const filteredClients = clients.filter(c => {
     if (!c.phone) return false;
-    // Only show numbers matching the selected operator's prefix
     const selectedOp = operators.find(o => o.id === operator);
     if (selectedOp && !c.phone.startsWith(selectedOp.prefix)) return false;
     
@@ -67,12 +81,12 @@ export default function FlexyGrosPage() {
       .then(r => setClients(r.data.users || []))
       .catch(e => console.error(e));
       
-    // Fetch online modems for the admin to select from
     API.get('/flexy/modems')
       .then(r => setModems(r.data.modems || []))
       .catch(e => console.error(e));
       
     fetchHistory();
+    fetchGrosDetails();
   }, []);
 
   const handleSend = async () => {
@@ -80,7 +94,10 @@ export default function FlexyGrosPage() {
       setResult({ success: false, msg: 'الرجاء إدخال رقم هاتف صحيح مكون من 10 أرقام' });
       return;
     }
-    if (!amount) return;
+    if (!amount || amount <= 0) {
+      setResult({ success: false, msg: 'الرجاء إدخال مبلغ صالح أكبر من الصفر' });
+      return;
+    }
     setLoading(true);
     setResult(null);
     try {
@@ -91,24 +108,244 @@ export default function FlexyGrosPage() {
       const { data } = await API.post('/flexy/send', payload);
       setResult({ success: true, msg: `تم إرسال فليكسي! معاملة #${data.transaction.id}` });
       fetchHistory();
+      fetchGrosDetails();
     } catch (err) {
-      setResult({ success: false, msg: err.response?.data?.error || 'فشل' });
+      setResult({ success: false, msg: err.response?.data?.error || 'فشل في العملية' });
     }
     setLoading(false);
   };
 
+  const todayStats = grosDetails?.todayStats || {};
+  const operatorBalances = grosDetails?.operatorBalances || { mobilis: 0, djezzy: 0, ooredoo: 0 };
+  const allModems = grosDetails?.modems || [];
+
   return (
     <div className="fade-in">
+      {/* Page Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title">{t('فليكسي جملة')}</h1>
-          <p className="page-subtitle">{t('إرسال فليكسي جملة لأي رقم')}</p>
+          <p className="page-subtitle">{t('إرسال فليكسي جملة وإدارة حساب ومودمات الجملة')}</p>
         </div>
+        <button
+          className="btn btn-secondary"
+          onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <FiLayers size={15} />
+          <span>{isDetailsOpen ? t('إخفاء تفاصيل فليكسي جملة') : t('عرض تفاصيل فليكسي جملة')}</span>
+          {isDetailsOpen ? <FiChevronUp size={16} /> : <FiChevronDown size={16} />}
+        </button>
       </div>
 
-      <div className="">
+      {/* SECTION: Détails Flexy gros (Collapsible Card) */}
+      {isDetailsOpen && (
+        <div className="card" style={{ marginBottom: 24, border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 8,
+                background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <FiActivity size={18} />
+              </div>
+              <div>
+                <span className="card-title" style={{ fontSize: 16 }}>{t('تفاصيل فليكسي جملة – Détails Flexy gros')}</span>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
+                  {t('الأرصدة المتوفرة حسب المتعامل، الشريحات المتصلة وإحصائيات اليوم')}
+                </p>
+              </div>
+            </div>
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={fetchGrosDetails}
+              disabled={detailsLoading}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              title={t("تحديث البيانات")}
+            >
+              <FiRefreshCw size={13} className={detailsLoading ? 'spinner' : ''} />
+              <span>{t('تحديث')}</span>
+            </button>
+          </div>
+
+          <div style={{ padding: '0 20px 20px' }}>
+            {/* 1. Soldes par opérateur (Mobilis, Djezzy, Ooredoo) */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <FiDollarSign size={14} />
+                <span>{t('رصيد الشريحات المتاح حسب المتعامل:')}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                {/* Mobilis */}
+                <div style={{
+                  background: 'rgba(0, 177, 64, 0.08)',
+                  border: '1px solid rgba(0, 177, 64, 0.3)',
+                  borderRadius: 10,
+                  padding: '14px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#00b140', fontSize: 14 }}>{t('موبيليس (Mobilis)')}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4, color: 'var(--text-primary)' }}>
+                      {(operatorBalances.mobilis || 0).toLocaleString()} <span style={{ fontSize: 13, fontWeight: 500 }}>{t('د.ج')}</span>
+                    </div>
+                  </div>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', background: '#00b140', color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11
+                  }}>
+                    06
+                  </div>
+                </div>
+
+                {/* Djezzy */}
+                <div style={{
+                  background: 'rgba(228, 0, 43, 0.08)',
+                  border: '1px solid rgba(228, 0, 43, 0.3)',
+                  borderRadius: 10,
+                  padding: '14px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#e4002b', fontSize: 14 }}>{t('جيزي (Djezzy)')}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4, color: 'var(--text-primary)' }}>
+                      {(operatorBalances.djezzy || 0).toLocaleString()} <span style={{ fontSize: 13, fontWeight: 500 }}>{t('د.ج')}</span>
+                    </div>
+                  </div>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', background: '#e4002b', color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11
+                  }}>
+                    07
+                  </div>
+                </div>
+
+                {/* Ooredoo */}
+                <div style={{
+                  background: 'rgba(237, 28, 36, 0.08)',
+                  border: '1px solid rgba(237, 28, 36, 0.3)',
+                  borderRadius: 10,
+                  padding: '14px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#ed1c24', fontSize: 14 }}>{t('أوريدو (Ooredoo)')}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4, color: 'var(--text-primary)' }}>
+                      {(operatorBalances.ooredoo || 0).toLocaleString()} <span style={{ fontSize: 13, fontWeight: 500 }}>{t('د.ج')}</span>
+                    </div>
+                  </div>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', background: '#ed1c24', color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11
+                  }}>
+                    05
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Statistiques globales & volume du jour */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <FiTrendingUp size={14} />
+                <span>{t('إحصائيات وحجم فليكسي جملة لليوم:')}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+                <div className="stat-card" style={{ padding: '12px 14px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('حجم الجملة اليوم')}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--success)', marginTop: 4 }}>
+                    {(todayStats.totalAmount || 0).toLocaleString()} <span style={{ fontSize: 12 }}>{t('د.ج')}</span>
+                  </div>
+                </div>
+                <div className="stat-card" style={{ padding: '12px 14px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('إجمالي عمليات اليوم')}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--primary)', marginTop: 4 }}>
+                    {(todayStats.totalCount || 0)} <span style={{ fontSize: 12 }}>{t('عملية')}</span>
+                  </div>
+                </div>
+                <div className="stat-card" style={{ padding: '12px 14px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('ناجحة / فاشلة')}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4, display: 'flex', gap: 6 }}>
+                    <span style={{ color: 'var(--success)' }}>✓ {todayStats.successCount || 0}</span>
+                    <span style={{ color: 'var(--danger)' }}>✗ {todayStats.failedCount || 0}</span>
+                  </div>
+                </div>
+                <div className="stat-card" style={{ padding: '12px 14px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('نسبة النجاح')}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)', marginTop: 4 }}>
+                    {todayStats.successRate != null ? todayStats.successRate : 100}%
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Statut des puces / modems en ligne */}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <FiCpu size={14} />
+                  <span>{t('الشريحات والمودمات المتصلة حالياً')} ({allModems.length}):</span>
+                </div>
+              </div>
+
+              {allModems.length === 0 ? (
+                <div style={{ padding: 14, textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-input)', borderRadius: 8, fontSize: 12 }}>
+                  {t('لا توجد شريحات أو مودمات متصلة حالياً بالفليكسي')}
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                  {allModems.map((m, idx) => {
+                    const opLower = m.operator?.toLowerCase() || '';
+                    const opColor = opLower.includes('mobilis') ? '#00b140' : opLower.includes('djezzy') ? '#e4002b' : '#ed1c24';
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8,
+                          padding: '10px 12px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)' }} />
+                            <span>{m.name || m.dongle_id}</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            {m.node_name} • <span style={{ color: opColor, fontWeight: 600 }}>{m.operator}</span>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'left' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: 13 }}>
+                            {parseFloat(m.balance || 0).toLocaleString()} {t('د.ج')}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Main Flexy Gros Form */}
+      <div>
         <div className="card">
-          <div className="card-header"><span className="card-title">{t('إرسال تعبئة')}</span></div>
+          <div className="card-header"><span className="card-title">{t('إرسال تعبئة فليكسي جملة')}</span></div>
 
           <div className="operator-btns" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             {operators.map(op => (
@@ -123,24 +360,25 @@ export default function FlexyGrosPage() {
 
           <div className="form-group" style={{ position: 'relative' }}>
             <label className="form-label"><FiPhone style={{ marginLeft: 4 }} />{t('رقم الهاتف أو اسم العميل')}</label>
-            <input className="form-input phone-input-large" placeholder="0550000000" value={number}
-                 style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center',  height: '70px', borderRadius: '12px' }} 
+            <input
+              className="form-input phone-input-large"
+              placeholder="0550000000"
+              value={number}
               maxLength={10}
               autoComplete="off"
               onFocus={() => setShowDropdown(true)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
               style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }}
               onChange={e => {
-                // Only allow digits
                 let val = e.target.value.replace(/\D/g, '');
                 setNumber(val);
                 setShowDropdown(true);
 
-                // Auto-detect operator based on digits
                 if (val.startsWith('05')) { setOperator('ooredoo'); setOffer(''); setSelectedModem(''); }
                 else if (val.startsWith('06')) { setOperator('mobilis'); setOffer(''); setSelectedModem(''); }
                 else if (val.startsWith('07')) { setOperator('djezzy'); setOffer(''); setSelectedModem(''); }
-              }} />
+              }}
+            />
             
             {showDropdown && filteredClients.length > 0 && (
               <div style={{
@@ -171,21 +409,21 @@ export default function FlexyGrosPage() {
             )}
           </div>
 
+          {/* Amount input without predefined buttons (as requested by user) */}
           <div className="form-group">
-            <label className="form-label"><FiDollarSign style={{ marginLeft: 4 }} />{t('المبلغ')}</label>
-            <div className="amount-btns" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-              {amounts.map(a => (
-                <button key={a}
-                  className={`btn btn-sm ${amount === a ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setAmount(a)}>
-                  {a} {t('د.ج')}
-                </button>
-              ))}
+            <label className="form-label"><FiDollarSign style={{ marginLeft: 4 }} />{t('المبلغ (د.ج)')}</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                className="form-input"
+                type="number"
+                min="1"
+                value={amount}
+                style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }} 
+                onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                onChange={e => setAmount(Number(e.target.value))}
+                placeholder={t("أدخل المبلغ")}
+              />
             </div>
-            <input className="form-input" type="number" min="1" value={amount}
-                 style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center',  height: '70px', borderRadius: '12px' }} 
-              onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-              onChange={e => setAmount(Number(e.target.value))} placeholder={t("مبلغ مخصص")} />
           </div>
 
           <div className="form-group" style={{ display: 'flex', gap: 16 }}>
@@ -219,15 +457,14 @@ export default function FlexyGrosPage() {
             </div>
           )}
 
-          <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center', padding: 12, fontSize: 23 }}
+          <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center', padding: 12, fontSize: 22, fontWeight: 700 }}
             onClick={handleSend} disabled={loading}>
-            {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <><FiSend size={14} style={{ marginLeft: 4 }} />{t('إرسال فليكسي جملة')}</>}
+            {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : <><FiSend size={15} style={{ marginLeft: 6 }} />{t('إرسال فليكسي جملة')}</>}
           </button>
         </div>
-
-
       </div>
 
+      {/* History table */}
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-header">
           <span className="card-title">{t('سجل فليكسي جملة')}</span>

@@ -344,4 +344,101 @@ const getOnlineModems = async (req, res) => {
   }
 };
 
-module.exports = { sendFlexy, getFlexyHistory, bulkFlexy, getOnlineModems };
+/**
+ * GET /api/v1/flexy/gros-details
+ * Returns important account details for Flexy Gros:
+ * - Operator balances (Mobilis, Djezzy, Ooredoo)
+ * - Online SIMs / Modems list and statuses
+ * - Today's Flexy Gros statistics: total volume, operations count, success rate
+ * - Current account wallet & role
+ */
+const getFlexyGrosDetails = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+
+    // 1. Modems & SIM cards with balances
+    let modems = [];
+    try {
+      const modemsResult = await query(`
+        SELECT d.dongle_id, d.name, d.operator, COALESCE(d.balance, 0) as balance,
+               d.online, COALESCE(n.name, 'Node') as node_name
+        FROM wss_dongles d
+        LEFT JOIN wss_nodes n ON d.node_id = n.id
+        WHERE d.online = true AND (n.status = 'online' OR n.status IS NULL)
+        ORDER BY d.operator, d.name
+      `);
+      modems = modemsResult.rows || [];
+    } catch (e) {
+      console.warn('WSS modems fetch note:', e.message);
+    }
+
+    // Calculate operator balances
+    const operatorBalances = {
+      mobilis: modems.filter(m => m.operator?.toLowerCase().includes('mobilis')).reduce((s, m) => s + parseFloat(m.balance || 0), 0),
+      djezzy: modems.filter(m => m.operator?.toLowerCase().includes('djezzy')).reduce((s, m) => s + parseFloat(m.balance || 0), 0),
+      ooredoo: modems.filter(m => m.operator?.toLowerCase().includes('ooredoo')).reduce((s, m) => s + parseFloat(m.balance || 0), 0),
+    };
+
+    // 2. Today's Flexy Gros statistics
+    let statsParams = [];
+    let statsSql = `
+      SELECT 
+        COUNT(*) as total_count,
+        COALESCE(SUM(CASE WHEN status = 'success' THEN amount ELSE 0 END), 0) as total_amount,
+        COUNT(CASE WHEN status = 'success' THEN 1 END) as success_count,
+        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count,
+        COUNT(CASE WHEN status = 'processing' OR status = 'pending' THEN 1 END) as pending_count
+      FROM transactions
+      WHERE type = 'flexy_gros'
+        AND created_at >= CURRENT_DATE
+    `;
+
+    if (!isAdmin) {
+      statsSql += ` AND (client_id = $1 OR processed_by = $1)`;
+      statsParams.push(userId);
+    }
+
+    const statsRes = await query(statsSql, statsParams);
+    const statsRow = statsRes.rows[0] || {};
+    const totalCount = parseInt(statsRow.total_count || 0, 10);
+    const successCount = parseInt(statsRow.success_count || 0, 10);
+    const failedCount = parseInt(statsRow.failed_count || 0, 10);
+    const pendingCount = parseInt(statsRow.pending_count || 0, 10);
+    const totalAmount = parseFloat(statsRow.total_amount || 0);
+    const successRate = totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 100;
+
+    // 3. User account details
+    const userRes = await query('SELECT wallet, debt, username, full_name, role FROM users WHERE id = $1', [userId]);
+    const userAcc = userRes.rows[0] || {};
+
+    res.json({
+      success: true,
+      details: {
+        account: {
+          username: userAcc.username,
+          full_name: userAcc.full_name,
+          role: userAcc.role,
+          wallet: parseFloat(userAcc.wallet || 0),
+          debt: parseFloat(userAcc.debt || 0),
+        },
+        operatorBalances,
+        todayStats: {
+          totalAmount,
+          totalCount,
+          successCount,
+          failedCount,
+          pendingCount,
+          successRate,
+        },
+        activeModemsCount: modems.length,
+        modems,
+      }
+    });
+  } catch (err) {
+    console.error('getFlexyGrosDetails error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { sendFlexy, getFlexyHistory, bulkFlexy, getOnlineModems, getFlexyGrosDetails };

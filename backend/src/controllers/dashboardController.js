@@ -8,14 +8,15 @@ const getDashboardStats = async (req, res) => {
     const userId = req.user.id;
     const isAdmin = req.user.role === 'ADMIN';
 
-    const [todayEarnings, totalTx, failedTx, activeSims, totalUsers, walletSum, myWallet] = await Promise.all([
-      query(`SELECT COALESCE(SUM(profit),0) as total FROM transactions WHERE DATE(created_at)=$1 AND status='success' ${!isAdmin ? 'AND processed_by=$2' : ''}`, isAdmin ? [today] : [today, userId]),
+    const [todayEarnings, totalTx, failedTx, activeSims, totalUsers, walletSum, myWallet, totalProfitRes] = await Promise.all([
+      query(`SELECT COALESCE(SUM(profit),0) as total FROM transactions WHERE DATE(created_at)=$1 AND status='success' ${!isAdmin ? 'AND (processed_by=$2 OR client_id=$2)' : ''}`, isAdmin ? [today] : [today, userId]),
       query(`SELECT COUNT(*) as total FROM transactions WHERE DATE(created_at)=$1 ${!isAdmin ? 'AND client_id=$2' : ''}`, isAdmin ? [today] : [today, userId]),
       query(`SELECT COUNT(*) as total FROM transactions WHERE status='failed' AND DATE(created_at)=$1 ${!isAdmin ? 'AND client_id=$2' : ''}`, isAdmin ? [today] : [today, userId]),
       query(`SELECT COUNT(*) as total FROM sim_cards WHERE status='active'`),
       query(`SELECT COUNT(*) as total FROM users WHERE status='active' ${!isAdmin ? 'AND parent_id=$1' : ''}`, isAdmin ? [] : [userId]),
       query(`SELECT COALESCE(SUM(wallet),0) as total FROM users`),
-      query(`SELECT wallet FROM users WHERE id=$1`, [userId])
+      query(`SELECT wallet FROM users WHERE id=$1`, [userId]),
+      query(`SELECT COALESCE(SUM(profit),0) as total FROM transactions WHERE status='success' ${!isAdmin ? 'AND (processed_by=$1 OR client_id=$1)' : ''}`, isAdmin ? [] : [userId])
     ]);
 
     const recentTx = await query(`SELECT t.*, u.username as client_name FROM transactions t LEFT JOIN users u ON t.client_id=u.id ${!isAdmin ? 'WHERE t.client_id=$1' : ''} ORDER BY t.created_at DESC LIMIT 10`, isAdmin ? [] : [userId]);
@@ -48,6 +49,7 @@ const getDashboardStats = async (req, res) => {
       success: true,
       stats: {
         todayEarnings: parseFloat(todayEarnings.rows[0].total),
+        totalEarnings: parseFloat(totalProfitRes.rows[0].total),
         totalTransactions: parseInt(totalTx.rows[0].total),
         failedOperations: parseInt(failedTx.rows[0].total),
         activeSims: parseInt(activeSims.rows[0].total),

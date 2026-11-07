@@ -14,7 +14,7 @@ const authenticate = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const result = await query('SELECT id, username, email, full_name, role, wallet, debt, status, logo_url FROM users WHERE id = $1', [decoded.userId]);
+    const result = await query('SELECT id, username, email, full_name, role, wallet, debt, status, logo_url, COALESCE(self_recharge_limit, 0) as self_recharge_limit, COALESCE(self_recharge_total, 0) as self_recharge_total, COALESCE(self_recharge_rule, \'total\') as self_recharge_rule, COALESCE(self_recharge_enabled, true) as self_recharge_enabled FROM users WHERE id = $1', [decoded.userId]);
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'User not found' });
     }

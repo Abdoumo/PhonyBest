@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { FiDollarSign, FiActivity, FiAlertTriangle, FiCpu, FiUsers, FiTrendingUp, FiDownload } from 'react-icons/fi';
+import { FiDollarSign, FiActivity, FiAlertTriangle, FiCpu, FiUsers, FiTrendingUp, FiDownload, FiZap } from 'react-icons/fi';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
 import API from '../api/axios';
@@ -115,8 +115,15 @@ export default function DashboardPage() {
   const chart = stats?.chartData?.length ? stats.chartData : mockChart;
 
   const statCards = [
-    { label: t("رصيدي الحالي"), value: isAdmin ? t('لا محدود') : `${(s.myWalletBalance || 0).toLocaleString()} ${t('د.ج')}`, icon: FiDollarSign, color: 'success' },
+    { label: t("الرصيد المتاح (Solde)"), value: isAdmin ? t('لا محدود') : `${(s.myWalletBalance || 0).toLocaleString()} ${t('د.ج')}`, icon: FiDollarSign, color: 'info' },
+    { label: t("إجمالي الأرباح (Bénéfices)"), value: `${(s.totalEarnings || 0).toLocaleString()} ${t('د.ج')}`, icon: FiTrendingUp, color: 'success' },
     { label: t("أرباح اليوم"), value: `${(s.todayEarnings || 0).toLocaleString()} ${t('د.ج')}`, icon: FiTrendingUp, color: 'accent', trend: '+12.5%', up: true },
+    !isAdmin && parseFloat(user?.self_recharge_limit || 0) > 0 && {
+      label: t("شحن ذاتي متاح (مصرح)"),
+      value: `${parseFloat(user?.self_recharge_limit || 0).toLocaleString()} ${t('د.ج')}`,
+      icon: FiZap,
+      color: 'info'
+    },
     { label: t('المعاملات'), value: s.totalTransactions || 0, icon: FiActivity, color: 'info', trend: '+8.3%', up: true },
     { label: t('عمليات فاشلة'), value: s.failedOperations || 0, icon: FiAlertTriangle, color: 'danger', trend: '-2.1%', up: false },
     isAdmin && { label: t('شرائح نشطة'), value: s.activeSims || 0, icon: FiCpu, color: 'success' },

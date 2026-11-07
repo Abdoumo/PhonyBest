@@ -111,7 +111,11 @@ const login = async (req, res) => {
         role: user.role,
         wallet: parseFloat(user.wallet),
         debt: parseFloat(user.debt),
-        logo_url: user.logo_url
+        logo_url: user.logo_url,
+        self_recharge_limit: parseFloat(user.self_recharge_limit || 0),
+        self_recharge_total: parseFloat(user.self_recharge_total || 0),
+        self_recharge_rule: user.self_recharge_rule || 'total',
+        self_recharge_enabled: user.self_recharge_enabled !== false
       },
       ...tokens,
     });

@@ -61,6 +61,8 @@ function AppRoutes() {
           <Route path="card-orders" element={<CardOrdersPage />} />
           <Route path="clients" element={<ClientsPage />} />
           <Route path="clients/:id" element={<ClientDetailsPage />} />
+          <Route path="client" element={<Navigate to="/clients" replace />} />
+          <Route path="client/:id" element={<ClientDetailsPage />} />
           <Route path="commissions" element={<CommissionsPage />} />
           <Route path="transfers" element={<TransfersPage />} />
           <Route path="stock" element={<StockPage />} />

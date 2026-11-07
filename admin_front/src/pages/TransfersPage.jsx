@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { useLanguage } from '../contexts/LanguageContext';
-import { FiArrowUpRight, FiSearch, FiSend, FiUser } from 'react-icons/fi';
+import {
+  FiArrowUpRight, FiArrowDownLeft, FiSearch, FiSend, FiUser, FiZap, FiCreditCard,
+  FiDollarSign, FiCheck, FiRotateCcw, FiInfo, FiTrendingUp, FiInbox, FiUploadCloud
+} from 'react-icons/fi';
 import API from '../api/axios';
+import TransferModal from '../components/TransferModal';
+import SelfRechargeModal from '../components/SelfRechargeModal';
+import ProfitTransferModal from '../components/ProfitTransferModal';
 
 export default function TransfersPage() {
   const { t } = useLanguage();
+  const { user } = useSelector(s => s.auth);
+
   const [transfers, setTransfers] = useState([]);
   const [search, setSearch] = useState('');
+  const [directionTab, setDirectionTab] = useState(''); // '' (all), 'incoming', 'outgoing'
   const [filters, setFilters] = useState({
     from_user: '',
     to_user: '',
@@ -19,48 +29,163 @@ export default function TransfersPage() {
   });
   const [loading, setLoading] = useState(false);
   
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ username: '', amount: '' });
-  const [sending, setSending] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showSelfRechargeModal, setShowSelfRechargeModal] = useState(false);
+  const [showProfitModal, setShowProfitModal] = useState(false);
 
   const load = () => {
     setLoading(true);
-    API.get('/wallet/history', { params: { search, ...filters } })
+    API.get('/wallet/history', { 
+      params: { 
+        search, 
+        direction: directionTab || undefined, 
+        ...filters 
+      } 
+    })
       .then(r => setTransfers(r.data.transactions || []))
       .catch(() => setTransfers([]))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [search, filters]);
+  useEffect(() => { 
+    load(); 
+  }, [search, directionTab, filters]);
 
-  const handleTransfer = async () => {
-    if (!form.username || !form.amount) return;
-    setSending(true);
-    try {
-      await API.post('/wallet/transfer', form);
-      setShowModal(false);
-      setForm({ username: '', amount: '' });
-      load();
-    } catch (e) {
-      alert(e.response?.data?.error || 'حدث خطأ أثناء التحويل');
-    }
-    setSending(false);
+  const typeConfig = {
+    'debt': { label: t('دين – Dette'), color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', icon: FiCreditCard },
+    'cash': { label: t('نقد – Espèces'), color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', icon: FiDollarSign },
+    'payment': { label: t('دفع – Paiement'), color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)', icon: FiCheck },
+    'debt_recovery': { label: t('استرداد دين'), color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', icon: FiRotateCcw },
+    'cash_recovery': { label: t('استرداد نقد'), color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.12)', icon: FiRotateCcw },
+    'payment_recovery': { label: t('استرداد دفع'), color: '#ec4899', bg: 'rgba(236, 72, 153, 0.12)', icon: FiRotateCcw },
+    'self_recharge': { label: t('شحن ذاتي – Recharge autonome'), color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.15)', icon: FiZap },
+    'profit_transfer': { label: t('تحويل الأرباح – Transfert bénéfices'), color: '#059669', bg: 'rgba(5, 150, 105, 0.15)', icon: FiTrendingUp },
+    'transfer': { label: t('تحويل'), color: '#6366f1', bg: 'rgba(99, 102, 241, 0.12)', icon: FiArrowUpRight },
+    'deposit': { label: t('إيداع'), color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', icon: FiDollarSign },
+    'withdrawal': { label: t('سحب'), color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', icon: FiArrowUpRight },
   };
+
+  const renderTypeBadge = (trxType) => {
+    const cfg = typeConfig[trxType] || { label: trxType, color: 'var(--text-muted)', bg: 'var(--bg-input)', icon: FiArrowUpRight };
+    const Icon = cfg.icon;
+    return (
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        fontSize: 12,
+        fontWeight: 600,
+        color: cfg.color,
+        background: cfg.bg,
+        padding: '3px 8px',
+        borderRadius: 6
+      }}>
+        <Icon size={12} />
+        {cfg.label}
+      </span>
+    );
+  };
+
+  const canSelfRecharge = user && (user.role === 'CLIENT' || user.role === 'COMMERCANT' || parseFloat(user.self_recharge_limit || 0) > 0);
 
   return (
     <div className="fade-in">
       <div className="page-header">
         <div>
           <h1 className="page-title">{t('التحويلات المالية')}</h1>
-          <p className="page-subtitle">{t('إدارة ومراقبة تحويلات الأرصدة بين المستخدمين')}</p>
+          <p className="page-subtitle">{t('إدارة ومراقبة تحويلات الأرصدة والديون والوارد والصادر')}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          <FiSend size={14} style={{marginLeft:4}}/>{t('تحويل رصيد')}</button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {/* Profit Transfer Button */}
+          <button
+            className="btn btn-secondary"
+            style={{ color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+            onClick={() => setShowProfitModal(true)}
+          >
+            <FiTrendingUp size={14} style={{ marginLeft: 4 }} />
+            {t('تحويل الأرباح')}
+          </button>
+
+          {/* Self-Recharge Button */}
+          {canSelfRecharge && (
+            <button
+              className="btn btn-secondary"
+              style={{ color: 'var(--success)', borderColor: 'var(--success)' }}
+              onClick={() => setShowSelfRechargeModal(true)}
+            >
+              <FiZap size={14} style={{ marginLeft: 4 }} />
+              {t('شحن ذاتي')}
+              {parseFloat(user.self_recharge_limit || 0) > 0 && (
+                <span style={{
+                  fontSize: 11, background: 'var(--success)', color: '#fff',
+                  padding: '1px 6px', borderRadius: 10, marginRight: 4
+                }}>
+                  {parseFloat(user.self_recharge_limit).toLocaleString()} د.ج
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* New Transfer Button */}
+          <button className="btn btn-primary" onClick={() => setShowTransferModal(true)}>
+            <FiSend size={14} style={{ marginLeft: 4 }} />
+            {t('تحويل رصيد جديد')}
+          </button>
+        </div>
       </div>
 
       <div className="table-wrapper">
+        {/* Point 7: Explicit Separation between Incoming and Outgoing Transfers */}
+        <div style={{
+          display: 'flex',
+          gap: 6,
+          padding: '12px 16px',
+          borderBottom: '1px solid var(--border-color, #334155)',
+          background: 'rgba(0,0,0,0.06)'
+        }}>
+          <button
+            onClick={() => setDirectionTab('')}
+            className={`btn btn-sm ${directionTab === '' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ borderRadius: 8, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            {t('جميع التحويلات')}
+          </button>
+          <button
+            onClick={() => setDirectionTab('incoming')}
+            className={`btn btn-sm ${directionTab === 'incoming' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{
+              borderRadius: 8,
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: directionTab === 'incoming' ? '#10b981' : undefined,
+              borderColor: directionTab === 'incoming' ? '#10b981' : undefined
+            }}
+          >
+            <FiInbox size={14} />
+            {t('التحويلات الواردة')} (Entrants)
+          </button>
+          <button
+            onClick={() => setDirectionTab('outgoing')}
+            className={`btn btn-sm ${directionTab === 'outgoing' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{
+              borderRadius: 8,
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: directionTab === 'outgoing' ? '#ef4444' : undefined,
+              borderColor: directionTab === 'outgoing' ? '#ef4444' : undefined
+            }}
+          >
+            <FiArrowUpRight size={14} />
+            {t('التحويلات الصادرة')} (Sortants)
+          </button>
+        </div>
+
         <div className="table-header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-          <div className="filters-responsive" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: 16 }}>
+          <div className="filters-responsive" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px', marginBottom: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('المرسل')}</label>
               <input className="form-input" placeholder={t("اسم المرسل")} value={filters.from_user} onChange={e => setFilters({ ...filters, from_user: e.target.value })} />
@@ -84,12 +209,26 @@ export default function TransfersPage() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('النوع')}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{t('نوع التحويل')}</label>
               <select className="form-select" value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })}>
-                <option value="">{t('الكل')}</option>
-                <option value="transfer">{t('تحويل')}</option>
-                <option value="deposit">{t('إيداع')}</option>
-                <option value="withdrawal">{t('سحب')}</option>
+                <option value="">{t('جميع الأنواع')}</option>
+                <optgroup label={t('الأنواع الأساسية')}>
+                  <option value="debt">{t('دين – Dette')}</option>
+                  <option value="cash">{t('نقد – Espèces')}</option>
+                  <option value="payment">{t('دفع – Paiement')}</option>
+                </optgroup>
+                <optgroup label={t('الاسترداد والشحن والأرباح')}>
+                  <option value="debt_recovery">{t('استرداد دين')}</option>
+                  <option value="cash_recovery">{t('استرداد نقد')}</option>
+                  <option value="payment_recovery">{t('استرداد دفع')}</option>
+                  <option value="self_recharge">{t('شحن الذاتي – Recharge autonome')}</option>
+                  <option value="profit_transfer">{t('تحويل الأرباح – Transfert bénéfices')}</option>
+                </optgroup>
+                <optgroup label={t('أخرى')}>
+                  <option value="transfer">{t('تحويل عادي')}</option>
+                  <option value="deposit">{t('إيداع')}</option>
+                  <option value="withdrawal">{t('سحب')}</option>
+                </optgroup>
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -102,79 +241,129 @@ export default function TransfersPage() {
               </select>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignSelf: 'flex-start', width: '100%', maxWidth: 300 }}>
+          <div style={{ display: 'flex', gap: 8, alignSelf: 'flex-start', width: '100%', maxWidth: 320 }}>
             <div className="header-search" style={{ width: '100%' }}>
               <FiSearch />
-              <input placeholder={t("البحث برقم المعاملة...")} value={search} onChange={e => setSearch(e.target.value)} />
+              <input placeholder={t("البحث برقم المعاملة أو الملاحظة...")} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           </div>
         </div>
+
         <table>
           <thead>
             <tr>
-              <th>{t('رقم المعاملة')}</th>
-              <th>{t('التاريخ')}</th>
+              <th>{t('رقم')}</th>
+              <th>{t('التاريخ والوقت')}</th>
               <th>{t('المرسل')}</th>
               <th>{t('المستلم')}</th>
-              <th>{t('المبلغ')}</th>
-              <th>{t('النوع')}</th>
+              <th>{t('المبلغ والاتجاه')}</th>
+              <th>{t('نوع التحويل')}</th>
+              <th>{t('البيان / ملاحظة')}</th>
               <th>{t('الحالة')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="7" style={{textAlign:'center', padding:24}}><span className="spinner" style={{margin:'0 auto'}}/></td></tr>
+              <tr><td colSpan="8" style={{ textAlign: 'center', padding: 24 }}><span className="spinner" style={{ margin: '0 auto' }} /></td></tr>
             ) : transfers.length === 0 ? (
-              <tr><td colSpan="7" style={{textAlign:'center', padding:24}}>{t('لا توجد تحويلات')}</td></tr>
-            ) : transfers.map(trx => (
-              <tr key={trx.id}>
-                <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{trx.id}</td>
-                <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(trx.date).toLocaleString('ar-DZ')}</td>
-                <td><span className="badge-status info">@{trx.from_user}</span></td>
-                <td><span className="badge-status info">@{trx.to_user}</span></td>
-                <td style={{ fontWeight: 600, color: 'var(--success)' }}>+{parseFloat(trx.amount).toLocaleString()} {t('د.ج')}</td>
-                <td>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12 }}>
-                    <FiArrowUpRight color="var(--accent)" />{t(trx.type === 'transfer' ? 'تحويل' : trx.type === 'deposit' ? 'إيداع' : trx.type === 'withdrawal' ? 'سحب' : trx.type)}</span>
-                </td>
-                <td>
-                  <span className={`badge-status ${trx.status === 'completed' ? 'success' : 'warning'}`}>
-                    {trx.status === 'completed' ? 'مكتمل' : 'قيد المعالجة'}
-                  </span>
-                </td>
-              </tr>
-            ))}
+              <tr><td colSpan="8" style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>{t('لا توجد تحويلات مطابقة')}</td></tr>
+            ) : transfers.map(trx => {
+              const isUserIncoming = trx.is_incoming || (user && trx.to_user_id === user.id);
+              const isUserOutgoing = trx.is_outgoing || (user && trx.from_user_id === user.id);
+
+              return (
+                <tr key={trx.id}>
+                  <td style={{ fontWeight: 600, fontFamily: 'monospace', color: 'var(--text-muted)' }}>#{trx.id}</td>
+                  <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {new Date(trx.date).toLocaleString('ar-DZ')}
+                  </td>
+                  <td>
+                    <span className="badge-status info">
+                      {trx.from_full_name ? `${trx.from_full_name} (@${trx.from_user})` : `@${trx.from_user}`}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="badge-status info">
+                      {trx.to_full_name ? `${trx.to_full_name} (@${trx.to_user})` : `@${trx.to_user}`}
+                    </span>
+                  </td>
+                  <td>
+                    {isUserIncoming ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10b981',
+                          padding: '2px 6px',
+                          borderRadius: 6
+                        }}>
+                          📥 {t('وارد')}
+                        </span>
+                        <span style={{ fontWeight: 700, color: 'var(--success)' }}>
+                          +{parseFloat(trx.amount).toLocaleString()} {t('د.ج')}
+                        </span>
+                      </div>
+                    ) : isUserOutgoing ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          color: '#ef4444',
+                          padding: '2px 6px',
+                          borderRadius: 6
+                        }}>
+                          📤 {t('صادر')}
+                        </span>
+                        <span style={{ fontWeight: 700, color: '#ef4444' }}>
+                          -{parseFloat(trx.amount).toLocaleString()} {t('د.ج')}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {parseFloat(trx.amount).toLocaleString()} {t('د.ج')}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {renderTypeBadge(trx.type)}
+                  </td>
+                  <td style={{ fontSize: 12, color: trx.notes ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {trx.notes || '-'}
+                  </td>
+                  <td>
+                    <span className={`badge-status ${trx.status === 'completed' ? 'success' : trx.status === 'pending' ? 'warning' : 'danger'}`}>
+                      {trx.status === 'completed' ? t('مكتمل') : trx.status === 'pending' ? t('قيد المعالجة') : t('فشل')}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">{t('تحويل رصيد جديد')}</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
-            </div>
-            <div className="form-group">
-              <label className="form-label">{t('اسم مستخدم المستلم')}</label>
-              <div style={{ position:'relative' }}>
-                <FiUser style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)' }} />
-                <input className="form-input" style={{ paddingRight:36 }} placeholder={t("مثال: gro_ahmed")} 
-                  value={form.username} onChange={e => setForm({...form, username: e.target.value})} />
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">{t('المبلغ (د.ج)')}</label>
-              <input className="form-input" type="number" placeholder={t("أدخل المبلغ المراد تحويله")} 
-                value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
-            </div>
-            <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center', marginTop:16 }} 
-              onClick={handleTransfer} disabled={sending || !form.username || !form.amount}>
-              {sending ? <span className="spinner" style={{width:16,height:16,borderWidth:2}} /> : <><FiSend size={14} style={{marginLeft:4}}/>{t('تأكيد التحويل')}</>}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Transfer Modal with Dette, Espèces, Paiement and validation */}
+      <TransferModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        onSuccess={load}
+      />
+
+      {/* Self-Recharge Modal for autonomous recharge */}
+      <SelfRechargeModal
+        isOpen={showSelfRechargeModal}
+        onClose={() => setShowSelfRechargeModal(false)}
+        onSuccess={load}
+      />
+
+      {/* Profit Transfer Modal */}
+      <ProfitTransferModal
+        isOpen={showProfitModal}
+        onClose={() => setShowProfitModal(false)}
+        onSuccess={load}
+      />
     </div>
   );
 }

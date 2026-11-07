@@ -6,26 +6,39 @@ const { query } = require('../config/database');
  */
 const getUsers = async (req, res) => {
   try {
-    const { role, status, search, page = 1, limit = 20 } = req.query;
+    const { role, status, search, filter_scope, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
     let sql = `
       SELECT u.id, u.username, u.email, u.full_name, u.phone, u.wilaya, u.role, u.wallet, u.debt, u.debt_limit, 
              u.profit_percentage, u.status, u.parent_id, u.permissions, u.last_login, u.created_at, u.logo_url,
+             COALESCE(u.self_recharge_limit, 0) as self_recharge_limit,
+             COALESCE(u.self_recharge_total, 0) as self_recharge_total,
+             COALESCE(u.self_recharge_rule, 'total') as self_recharge_rule,
+             COALESCE(u.self_recharge_enabled, true) as self_recharge_enabled,
              COALESCE((SELECT SUM(profit) FROM transactions WHERE client_id = u.id AND status = 'success'), 0) as total_profit
       FROM users u WHERE 1=1
     `;
     const params = [];
     let paramIdx = 1;
 
+    // Strict RBAC: Non-admin can only see accounts they created (direct children)
     if (req.user.role !== 'ADMIN') {
-      sql += ` AND parent_id = $${paramIdx++}`;
+      sql += ` AND u.parent_id = $${paramIdx++}`;
+      params.push(req.user.id);
+    } else if (filter_scope === 'mine') {
+      // For ADMIN: 'Ana – Moi' filter to see accounts created directly by admin
+      sql += ` AND u.parent_id = $${paramIdx++}`;
       params.push(req.user.id);
     }
 
     if (role) {
-      sql += ` AND role = $${paramIdx++}`;
-      params.push(role);
+      if (role === 'GROS' || role === 'GRO') {
+        sql += ` AND u.role IN ('GROSIST', 'GRO')`;
+      } else {
+        sql += ` AND u.role = $${paramIdx++}`;
+        params.push(role);
+      }
     }
     if (status) {
       sql += ` AND status = $${paramIdx++}`;
@@ -78,6 +91,10 @@ const getUser = async (req, res) => {
     const result = await query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.wilaya, u.role, u.wallet, u.debt, u.debt_limit, 
               u.profit_percentage, u.status, u.parent_id, u.permissions, u.last_login, u.created_at, u.logo_url,
+              COALESCE(u.self_recharge_limit, 0) as self_recharge_limit,
+              COALESCE(u.self_recharge_total, 0) as self_recharge_total,
+              COALESCE(u.self_recharge_rule, 'total') as self_recharge_rule,
+              COALESCE(u.self_recharge_enabled, true) as self_recharge_enabled,
               COALESCE((SELECT SUM(profit) FROM transactions WHERE client_id = u.id AND status = 'success'), 0) as total_profit
        FROM users u WHERE u.id = $1`,
       [req.params.id]
@@ -140,7 +157,7 @@ const createUser = async (req, res) => {
  */
 const updateUser = async (req, res) => {
   try {
-    let { full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions, password } = req.body;
+    let { full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions, password, self_recharge_limit, self_recharge_total, self_recharge_rule, self_recharge_enabled } = req.body;
     const userId = req.params.id;
 
     if (req.user.role !== 'ADMIN') {
@@ -168,8 +185,15 @@ const updateUser = async (req, res) => {
     }
 
     let updatePasswordSql = '';
-    let queryParams = [full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions, userId];
-    let paramIndex = 12;
+    let queryParams = [
+      full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions,
+      self_recharge_limit !== undefined ? parseFloat(self_recharge_limit) : null,
+      self_recharge_total !== undefined ? parseFloat(self_recharge_total) : null,
+      self_recharge_rule !== undefined ? self_recharge_rule : null,
+      self_recharge_enabled !== undefined ? self_recharge_enabled : null,
+      userId
+    ];
+    let paramIndex = 16;
 
     if (password && password.trim() !== '') {
       const hashedPassword = await bcrypt.hash(password, 12);
@@ -188,11 +212,15 @@ const updateUser = async (req, res) => {
         wallet = COALESCE($7, wallet),
         debt_limit = COALESCE($8, debt_limit),
         profit_percentage = COALESCE($9, profit_percentage),
-        permissions = COALESCE($10, permissions)
+        permissions = COALESCE($10, permissions),
+        self_recharge_limit = COALESCE($11, self_recharge_limit),
+        self_recharge_total = COALESCE($12, self_recharge_total),
+        self_recharge_rule = COALESCE($13, self_recharge_rule),
+        self_recharge_enabled = COALESCE($14, self_recharge_enabled)
         ${updatePasswordSql},
         updated_at = NOW()
-      WHERE id = $11
-      RETURNING id, username, email, full_name, phone, wilaya, role, wallet, debt, status, permissions`,
+      WHERE id = $15
+      RETURNING id, username, email, full_name, phone, wilaya, role, wallet, debt, status, permissions, self_recharge_limit, self_recharge_total, self_recharge_rule, self_recharge_enabled`,
       queryParams
     );
 
@@ -284,4 +312,45 @@ const uploadLogo = async (req, res) => {
   }
 };
 
-module.exports = { getUsers, getUser, createUser, updateUser, deleteUser, manageDebt, uploadLogo };
+/**
+ * POST /api/v1/users/:id/self-recharge-config
+ */
+const setSelfRechargeConfig = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    // IDOR Protection: Enforce hierarchy
+    if (req.user.role !== 'ADMIN') {
+      const checkOwnership = await query('SELECT id FROM users WHERE id = $1 AND parent_id = $2', [userId, req.user.id]);
+      if (checkOwnership.rows.length === 0) {
+        return res.status(403).json({ error: 'غير مصرح لك بإدارة هذا العميل' });
+      }
+    }
+
+    const { limit, total, rule = 'total', enabled = true } = req.body;
+    const parsedLimit = parseFloat(limit) || 0;
+    const parsedTotal = total !== undefined ? (parseFloat(total) || 0) : parsedLimit;
+
+    await query(
+      `UPDATE users SET 
+        self_recharge_limit = $1, 
+        self_recharge_total = $2, 
+        self_recharge_rule = $3, 
+        self_recharge_enabled = $4,
+        updated_at = NOW()
+       WHERE id = $5`,
+      [parsedLimit, parsedTotal, rule, enabled, userId]
+    );
+
+    const result = await query(
+      `SELECT id, username, self_recharge_limit, self_recharge_total, self_recharge_rule, self_recharge_enabled FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    res.json({ success: true, user: result.rows[0], message: 'تم تحديث ترخيص الشحن الذاتي بنجاح' });
+  } catch (err) {
+    console.error('Set self recharge config error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { getUsers, getUser, createUser, updateUser, deleteUser, manageDebt, uploadLogo, setSelfRechargeConfig };
