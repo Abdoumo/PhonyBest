@@ -3,6 +3,7 @@ const { query } = require('../config/database');
 exports.getConsumption = async (req, res) => {
   try {
     const { search } = req.query;
+    const isAdmin = req.user.role === 'ADMIN';
 
     let sql = `
       SELECT 
@@ -18,12 +19,21 @@ exports.getConsumption = async (req, res) => {
         COALESCE(SUM(t.amount) FILTER (WHERE t.status IN ('success', 'completed') AND t.type = 'idoom'), 0) as idoom_consumed
       FROM users u
       LEFT JOIN transactions t ON t.client_id = u.id
+      WHERE 1=1
     `;
 
     const params = [];
+    let idx = 1;
+
+    if (!isAdmin) {
+      sql += ` AND (u.parent_id = $${idx++} OR u.id = $${idx++})`;
+      params.push(req.user.id, req.user.id);
+    }
+
     if (search) {
-      sql += ` WHERE (u.username ILIKE $1 OR u.full_name ILIKE $1) `;
+      sql += ` AND (u.username ILIKE $${idx} OR u.full_name ILIKE $${idx}) `;
       params.push(`%${search}%`);
+      idx++;
     }
 
     sql += `
@@ -42,6 +52,14 @@ exports.getConsumption = async (req, res) => {
 
 exports.getOverview = async (req, res) => {
   try {
+    const isAdmin = req.user.role === 'ADMIN';
+    const filterParams = [];
+    let txScopeFilter = '';
+    if (!isAdmin) {
+      txScopeFilter = ' AND (client_id = $1 OR processed_by = $1 OR client_id IN (SELECT id FROM users WHERE parent_id = $1))';
+      filterParams.push(req.user.id);
+    }
+
     // 1. Service Distribution (Pie Chart) - Last 30 days
     const pieRes = await query(`
       SELECT 
@@ -56,8 +74,9 @@ exports.getOverview = async (req, res) => {
       FROM transactions
       WHERE status IN ('success', 'completed')
         AND created_at >= NOW() - INTERVAL '30 days'
+        ${txScopeFilter}
       GROUP BY name
-    `);
+    `, filterParams);
     
     let pieData = pieRes.rows.map(r => ({ name: r.name, value: Number(r.value) }));
     

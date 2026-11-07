@@ -229,25 +229,47 @@ def read_auth_file(drive_letter):
 # Local Bridge Server
 # ═══════════════════════════════════════════════════════════════════
 
+TRUSTED_BRIDGE_ORIGINS = {
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+    "https://admin.phonybest.dz",
+    "https://phonybest.dz",
+    "https://backend.phonybest.dz"
+}
+
 class LocalBridgeHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass # Suppress logs
         
     def do_OPTIONS(self):
-        origin = self.headers.get('Origin', '*')
+        origin = self.headers.get('Origin', '')
+        if origin and origin not in TRUSTED_BRIDGE_ORIGINS:
+            self.send_response(403)
+            self.end_headers()
+            return
+            
+        allowed_origin = origin if origin in TRUSTED_BRIDGE_ORIGINS else "http://localhost:5173"
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', origin)
+        self.send_header('Access-Control-Allow-Origin', allowed_origin)
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', self.headers.get('Access-Control-Request-Headers', '*'))
         self.send_header('Access-Control-Allow-Private-Network', 'true')
         self.end_headers()
 
     def do_GET(self):
-        origin = self.headers.get('Origin', '*')
+        origin = self.headers.get('Origin', '')
+        if origin and origin not in TRUSTED_BRIDGE_ORIGINS:
+            self.send_response(403)
+            self.end_headers()
+            return
+
         if self.path == '/get-session':
+            allowed_origin = origin if origin in TRUSTED_BRIDGE_ORIGINS else "http://localhost:5173"
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', origin)
+            self.send_header('Access-Control-Allow-Origin', allowed_origin)
             self.send_header('Access-Control-Allow-Private-Network', 'true')
             self.end_headers()
             
@@ -268,8 +290,8 @@ class LocalBridgeHandler(BaseHTTPRequestHandler):
 
 def start_local_server():
     try:
-        # Bind to all interfaces to ensure it's accessible
-        server = HTTPServer(('', 4005), LocalBridgeHandler)
+        # Bind strictly to 127.0.0.1 (localhost) to prevent exposure on local LAN/Wi-Fi
+        server = HTTPServer(('127.0.0.1', 4005), LocalBridgeHandler)
         server.serve_forever()
     except Exception as e:
         import sys

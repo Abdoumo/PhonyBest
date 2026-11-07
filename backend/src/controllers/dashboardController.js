@@ -12,9 +12,9 @@ const getDashboardStats = async (req, res) => {
       query(`SELECT COALESCE(SUM(profit),0) as total FROM transactions WHERE DATE(created_at)=$1 AND status='success' ${!isAdmin ? 'AND (processed_by=$2 OR client_id=$2)' : ''}`, isAdmin ? [today] : [today, userId]),
       query(`SELECT COUNT(*) as total FROM transactions WHERE DATE(created_at)=$1 ${!isAdmin ? 'AND client_id=$2' : ''}`, isAdmin ? [today] : [today, userId]),
       query(`SELECT COUNT(*) as total FROM transactions WHERE status='failed' AND DATE(created_at)=$1 ${!isAdmin ? 'AND client_id=$2' : ''}`, isAdmin ? [today] : [today, userId]),
-      query(`SELECT COUNT(*) as total FROM sim_cards WHERE status='active'`),
+      isAdmin ? query(`SELECT COUNT(*) as total FROM sim_cards WHERE status='active'`) : Promise.resolve({ rows: [{ total: 0 }] }),
       query(`SELECT COUNT(*) as total FROM users WHERE status='active' ${!isAdmin ? 'AND parent_id=$1' : ''}`, isAdmin ? [] : [userId]),
-      query(`SELECT COALESCE(SUM(wallet),0) as total FROM users`),
+      isAdmin ? query(`SELECT COALESCE(SUM(wallet),0) as total FROM users`) : query(`SELECT COALESCE(SUM(wallet),0) as total FROM users WHERE parent_id=$1 OR id=$1`, [userId]),
       query(`SELECT wallet FROM users WHERE id=$1`, [userId]),
       query(`SELECT COALESCE(SUM(profit),0) as total FROM transactions WHERE status='success' ${!isAdmin ? 'AND (processed_by=$1 OR client_id=$1)' : ''}`, isAdmin ? [] : [userId])
     ]);

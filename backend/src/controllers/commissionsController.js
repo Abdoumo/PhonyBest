@@ -2,7 +2,17 @@ const { query } = require('../config/database');
 
 const getCommissions = async (req, res) => {
   try {
-    const result = await query('SELECT * FROM commission_offers ORDER BY service, operator, role');
+    const isAdmin = req.user.role === 'ADMIN';
+    let sql, params;
+    if (isAdmin) {
+      sql = 'SELECT * FROM commission_offers ORDER BY service, operator, role';
+      params = [];
+    } else {
+      // Data Shielding: Hide internal admin_cost and other roles' rates from non-admins
+      sql = 'SELECT id, role, service, operator, base_amount, client_price FROM commission_offers WHERE role = $1 ORDER BY service, operator';
+      params = [req.user.role];
+    }
+    const result = await query(sql, params);
     res.json({ success: true, offers: result.rows });
   } catch (err) { 
     console.error(err);
