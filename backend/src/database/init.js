@@ -386,14 +386,21 @@ const createTables = async () => {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_events_date ON wss_events(created_at);`);
 
     // Create default admin user
-    const adminExists = await client.query(`SELECT id FROM users WHERE username = 'admin'`);
-    if (adminExists.rows.length === 0) {
-      const hashedPassword = await bcrypt.hash('admin123', 12);
-      await client.query(`
-        INSERT INTO users (username, email, password, full_name, role, wallet, status)
-        VALUES ('admin', 'admin@flexygsm.com', $1, 'System Administrator', 'ADMIN', 999999.00, 'active')
-      `, [hashedPassword]);
-      console.log('✅ Default admin created (admin / admin123)');
+    try {
+      const adminExists = await client.query(
+        `SELECT id FROM users WHERE username = 'admin' OR email = 'admin@flexygsm.com'`
+      );
+      if (adminExists.rows.length === 0) {
+        const hashedPassword = await bcrypt.hash('admin123', 12);
+        await client.query(`
+          INSERT INTO users (username, email, password, full_name, role, wallet, status)
+          VALUES ('admin', 'admin@flexygsm.com', $1, 'System Administrator', 'ADMIN', 999999.00, 'active')
+          ON CONFLICT DO NOTHING
+        `, [hashedPassword]);
+        console.log('✅ Default admin created (admin / admin123)');
+      }
+    } catch (adminErr) {
+      console.log('⚠️ Default admin check/creation note:', adminErr.message);
     }
 
     // Database migrations for existing setups
