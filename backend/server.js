@@ -15,19 +15,34 @@ app.use(cookieParser());
 const server = http.createServer(app);
 
 // Security & CORS Configuration
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
+const rawFrontendUrls = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(u => u.trim())
+  .filter(Boolean);
+
+const defaultAllowedOrigins = [
+  'https://phonybest.dz',
+  'https://www.phonybest.dz',
+  'http://phonybest.dz',
+  'http://www.phonybest.dz',
+  'https://backend.phonybest.dz',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:3000'
-].filter(Boolean);
+];
+
+const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...rawFrontendUrls]));
 
 const isOriginAllowed = (origin) => {
-  if (!origin) return true; // Allow non-browser requests (e.g. server-to-server, mobile, curl)
+  if (!origin) return true; // Allow non-browser requests (e.g. mobile, curl, server-to-server)
   if (allowedOrigins.includes(origin)) return true;
-  // Allow localhost with any dev port or same-origin domain
-  if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+  // Allow phonybest.dz and any of its subdomains (https or http, with or without port)
+  if (/^https?:\/\/([a-zA-Z0-9-]+\.)*phonybest\.dz(:\d+)?$/i.test(origin)) {
+    return true;
+  }
+  // Allow localhost or 127.0.0.1 with any dev port
+  if (/^https?:\/\/localhost(:\d+)?$/i.test(origin) || /^https?:\/\/127\.0\.0\.1(:\d+)?$/i.test(origin)) {
     return true;
   }
   return false;
@@ -37,8 +52,11 @@ const isOriginAllowed = (origin) => {
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      if (isOriginAllowed(origin)) callback(null, true);
-      else callback(new Error('Socket connection blocked by CORS'));
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
     },
     methods: ['GET', 'POST'],
     credentials: true
@@ -51,20 +69,9 @@ app.set('io', io);
 
 // Security middleware (Helmet with HSTS and CSP)
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'same-site' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'", 'ws:', 'wss:', 'https:'],
-      fontSrc: ["'self'", 'data:', 'https:'],
-      objectSrc: ["'none'"],
-      frameAncestors: ["'self'"]
-    }
-  }
+  contentSecurityPolicy: false
 }));
 
 const corsOptions = {
@@ -72,14 +79,24 @@ const corsOptions = {
     if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Blocked by CORS policy'));
+      callback(null, false);
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cookie'
+  ],
+  exposedHeaders: ['Set-Cookie'],
+  optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));

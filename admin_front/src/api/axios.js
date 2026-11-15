@@ -3,6 +3,7 @@ import axios from 'axios';
 const API = axios.create({
   baseURL: `${import.meta.env.VITE_BACKEND_URL}/api/v1`,
   timeout: 15000,
+  withCredentials: true,
 });
 
 API.interceptors.request.use((config) => {
@@ -46,7 +47,7 @@ API.interceptors.response.use(
 
       try {
         const rt = localStorage.getItem('refreshToken');
-        const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/auth/refresh`, { refreshToken: rt });
+        const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/v1/auth/refresh`, { refreshToken: rt }, { withCredentials: true });
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         orig.headers.Authorization = `Bearer ${data.accessToken}`;
