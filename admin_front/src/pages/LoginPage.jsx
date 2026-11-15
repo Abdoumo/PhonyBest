@@ -74,9 +74,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p style={{ textAlign:'center', marginTop:24, fontSize:12, color:'var(--text-muted)' }}>
-            الافتراضي: admin / admin123
-          </p>
         </div>
       </div>
       <div className="login-right">

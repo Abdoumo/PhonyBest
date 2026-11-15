@@ -1,5 +1,5 @@
 async function testLiveApi() {
-  const BASE_URL = 'https://backend.phonybest.dz//api/v1';
+  const BASE_URL = 'https://backend.phonybest.dz/api/v1';
   console.log(`Starting tests against ${BASE_URL}\n`);
 
   try {

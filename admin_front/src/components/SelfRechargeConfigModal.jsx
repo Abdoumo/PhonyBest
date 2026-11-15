@@ -96,36 +96,90 @@ export default function SelfRechargeConfigModal({ isOpen, onClose, onSuccess, cl
 
         <form onSubmit={handleSubmit} style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
           
-          {/* Enabled switch */}
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '12px 14px', background: 'var(--bg-input)', borderRadius: 10
-          }}>
+          {/* Enabled switch - High-contrast & clear visual state */}
+          <div 
+            onClick={() => setEnabled(!enabled)}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '14px 16px',
+              background: enabled ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.06)',
+              border: `2px solid ${enabled ? '#10b981' : '#ef4444'}`,
+              borderRadius: 12,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              userSelect: 'none'
+            }}
+          >
             <div>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{t('حالة الشحن الذاتي')}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 2 }}>
+                {t('حالة الشحن الذاتي')}
+              </div>
+              <div style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: enabled ? '#10b981' : '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: enabled ? '#10b981' : '#ef4444'
+                }} />
                 {enabled ? t('مفعل: يمكن للعميل إجراء شحن ذاتي بنفسه') : t('معطل: لا يمكن للعميل الشحن ذاتياً')}
               </div>
             </div>
-            <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={e => setEnabled(e.target.checked)}
-                style={{ opacity: 0, width: 0, height: 0 }}
-              />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Status Badge */}
               <span style={{
-                position: 'absolute', inset: 0,
-                background: enabled ? 'var(--primary)' : 'var(--border)',
-                borderRadius: 24, transition: '0.2s'
+                padding: '4px 10px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 800,
+                background: enabled ? '#10b981' : '#ef4444',
+                color: '#ffffff',
+                boxShadow: enabled ? '0 2px 8px rgba(16, 185, 129, 0.35)' : '0 2px 8px rgba(239, 68, 68, 0.35)'
               }}>
-                <span style={{
-                  position: 'absolute', top: 2, left: enabled ? 22 : 2,
-                  width: 20, height: 20, background: '#fff', borderRadius: '50%',
-                  transition: '0.2s'
-                }} />
+                {enabled ? t('مفعل') : t('معطل')}
               </span>
-            </label>
+
+              {/* Physical Switch */}
+              <label 
+                onClick={e => e.stopPropagation()} 
+                style={{ position: 'relative', display: 'inline-block', width: 52, height: 28, cursor: 'pointer', margin: 0 }}
+              >
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  onChange={e => setEnabled(e.target.checked)}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span style={{
+                  position: 'absolute', inset: 0,
+                  background: enabled ? '#10b981' : '#374151',
+                  border: `2px solid ${enabled ? '#059669' : '#6b7280'}`,
+                  borderRadius: 28,
+                  transition: 'all 0.25s ease',
+                  boxShadow: enabled ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none'
+                }}>
+                  <span style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: enabled ? 26 : 2,
+                    width: 20,
+                    height: 20,
+                    background: '#ffffff',
+                    borderRadius: '50%',
+                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.35)',
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }} />
+                </span>
+              </label>
+            </div>
           </div>
 
           {/* Amount / Limit */}
