@@ -67,6 +67,23 @@ require('./src/sockets')(io);
 // Make io accessible to routes
 app.set('io', io);
 
+// Universal CORS & Preflight handler (handles preflight OPTIONS immediately)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (isOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cookie');
+    res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Authorization');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
 // Security middleware (Helmet with HSTS and CSP)
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -92,7 +109,7 @@ const corsOptions = {
     'Origin',
     'Cookie'
   ],
-  exposedHeaders: ['Set-Cookie'],
+  exposedHeaders: ['Set-Cookie', 'Authorization'],
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
@@ -162,7 +179,12 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  const origin = req.headers.origin;
+  if (isOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  res.status(500).json({ error: 'Internal server error', details: err?.message });
 });
 
 // Start server
