@@ -51,15 +51,23 @@ export default function FlexyPage() {
 
   const filteredClients = clients.filter(c => {
     if (!c.phone) return false;
-    // Only show numbers matching the selected operator's prefix
-    const selectedOp = operators.find(o => o.id === operator);
-    if (selectedOp && !c.phone.startsWith(selectedOp.prefix)) return false;
+    const term = (number || '').trim().toLowerCase();
+    if (!term) return true;
     
-    return (
-      c.phone.includes(number) || 
-      (c.full_name && c.full_name.toLowerCase().includes(number.toLowerCase())) || 
-      (c.username && c.username.toLowerCase().includes(number.toLowerCase()))
-    );
+    const matchesRef = c.ref_code && c.ref_code.toLowerCase().includes(term);
+    const matchesName = c.full_name && c.full_name.toLowerCase().includes(term);
+    const matchesUsername = c.username && c.username.toLowerCase().includes(term);
+
+    if (matchesRef || matchesName || matchesUsername) {
+      return true;
+    }
+
+    const cleanDigits = term.replace(/\D/g, '');
+    if (cleanDigits) {
+      return c.phone.replace(/\D/g, '').includes(cleanDigits);
+    }
+
+    return false;
   });
 
   useEffect(() => {
@@ -76,15 +84,33 @@ export default function FlexyPage() {
   }, []);
 
   const handleSend = async () => {
-    if (!number || number.length !== 10) {
-      setResult({ success: false, msg: 'الرجاء إدخال رقم هاتف صحيح مكون من 10 أرقام' });
+    let cleanPhone = number.replace(/\D/g, '');
+    let resolvedOp = operator;
+
+    if (cleanPhone.length !== 10) {
+      const term = number.trim().toLowerCase();
+      const matched = clients.find(c => 
+        (c.ref_code && c.ref_code.toLowerCase() === term) ||
+        (c.username && c.username.toLowerCase() === term) ||
+        (c.full_name && c.full_name.toLowerCase() === term)
+      );
+      if (matched && matched.phone) {
+        cleanPhone = matched.phone.replace(/\D/g, '').substring(0, 10);
+        if (cleanPhone.startsWith('05')) resolvedOp = 'ooredoo';
+        else if (cleanPhone.startsWith('06')) resolvedOp = 'mobilis';
+        else if (cleanPhone.startsWith('07')) resolvedOp = 'djezzy';
+      }
+    }
+
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      setResult({ success: false, msg: 'الرجاء إدخال رقم هاتف صحيح مكون من 10 أرقام أو اختيار عميل بالرمز المرجعي' });
       return;
     }
     if (!amount) return;
     setLoading(true);
     setResult(null);
     try {
-      const payload = { number, operator, amount, offer };
+      const payload = { number: cleanPhone, operator: resolvedOp, amount, offer };
       if (selectedModem) {
         payload.dongle_id = selectedModem;
       }
@@ -122,24 +148,22 @@ export default function FlexyPage() {
           </div>
 
           <div className="form-group" style={{ position: 'relative' }}>
-            <label className="form-label"><FiPhone style={{ marginLeft: 4 }} />{t('رقم الهاتف أو اسم العميل')}</label>
-            <input className="form-input phone-input-large" placeholder="0550000000" value={number}
-                 style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center',  height: '70px', borderRadius: '12px' }} 
-              maxLength={10}
+            <label className="form-label"><FiPhone style={{ marginLeft: 4 }} />{t('رقم الهاتف، كود العميل المرجعي (Ref) أو الاسم')}</label>
+            <input className="form-input phone-input-large" placeholder="0550000000 / mh01" value={number}
               autoComplete="off"
               onFocus={() => setShowDropdown(true)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-              style={{ fontSize: '2.5rem', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }}
+              style={{ fontSize: '2.5rem', letterSpacing: '3px', textAlign: 'center', fontWeight: 'bold', height: '70px', borderRadius: '12px' }}
               onChange={e => {
-                // Only allow digits
-                let val = e.target.value.replace(/\D/g, '');
+                const val = e.target.value;
                 setNumber(val);
                 setShowDropdown(true);
 
-                // Auto-detect operator based on digits
-                if (val.startsWith('05')) { setOperator('ooredoo'); setOffer(''); setSelectedModem(''); }
-                else if (val.startsWith('06')) { setOperator('mobilis'); setOffer(''); setSelectedModem(''); }
-                else if (val.startsWith('07')) { setOperator('djezzy'); setOffer(''); setSelectedModem(''); }
+                // Auto-detect operator based on digits if starting with prefix
+                const cleanDigits = val.replace(/\D/g, '');
+                if (cleanDigits.startsWith('05')) { setOperator('ooredoo'); setOffer(''); setSelectedModem(''); }
+                else if (cleanDigits.startsWith('06')) { setOperator('mobilis'); setOffer(''); setSelectedModem(''); }
+                else if (cleanDigits.startsWith('07')) { setOperator('djezzy'); setOffer(''); setSelectedModem(''); }
               }} />
             
             {showDropdown && filteredClients.length > 0 && (
@@ -163,7 +187,23 @@ export default function FlexyPage() {
                       else if (cleanPhone.startsWith('07')) { setOperator('djezzy'); setOffer(''); setSelectedModem(''); }
                     }}
                   >
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '1.1rem' }}>{c.full_name || c.username}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '1.1rem' }}>{c.full_name || c.username}</span>
+                      {c.ref_code && (
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 800,
+                          fontFamily: 'monospace',
+                          padding: '2px 8px',
+                          borderRadius: 6,
+                          background: 'rgba(99, 102, 241, 0.15)',
+                          color: '#6366f1',
+                          border: '1px solid rgba(99, 102, 241, 0.3)'
+                        }} title={t('كود العميل المرجعي')}>
+                          {c.ref_code}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '1.2rem', letterSpacing: '2px', fontFamily: 'monospace' }}>{c.phone}</div>
                   </div>
                 ))}

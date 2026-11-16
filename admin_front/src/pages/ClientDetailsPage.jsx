@@ -45,6 +45,7 @@ export default function ClientDetailsPage() {
       setClient(data.user);
       setForm({
         username: data.user.username || '',
+        ref_code: data.user.ref_code || '',
         email: data.user.email || '',
         password: '',
         full_name: data.user.full_name || '',
@@ -193,7 +194,23 @@ export default function ClientDetailsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button className="btn btn-icon btn-secondary" onClick={() => navigate(-1)}><FiArrowRight /></button>
           <div>
-            <h1 className="page-title">{client.full_name || client.username}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h1 className="page-title">{client.full_name || client.username}</h1>
+              {client.ref_code && (
+                <span style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  fontFamily: 'monospace',
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  background: 'rgba(99, 102, 241, 0.15)',
+                  color: '#6366f1',
+                  border: '1px solid rgba(99, 102, 241, 0.3)'
+                }} title={t('كود العميل المرجعي')}>
+                  {client.ref_code}
+                </span>
+              )}
+            </div>
             <p className="page-subtitle">
               @{client.username} • <span className={`badge-status ${client.status === 'active' ? 'success' : 'danger'}`} style={{ fontSize: 11, padding: '2px 6px' }}>{client.status === 'active' ? t('نشط') : t('موقوف')}</span>
             </p>
@@ -493,9 +510,15 @@ export default function ClientDetailsPage() {
               <h3 className="modal-title">{t('تعديل المستخدم')}</h3>
               <button className="modal-close" onClick={() => setShowEditModal(false)}>×</button>
             </div>
-            <div className="form-group">
-              <label className="form-label">{t('اسم المستخدم')}</label>
-              <input className="form-input" value={form.username} disabled />
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">{t('اسم المستخدم')}</label>
+                <input className="form-input" value={form.username} disabled />
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t('كود العميل المرجعي (Ref Code)')}</label>
+                <input className="form-input" placeholder="e.g. mh01" value={form.ref_code || ''} onChange={e => setForm({ ...form, ref_code: e.target.value })} />
+              </div>
             </div>
             <div className="grid-2">
               <div className="form-group">

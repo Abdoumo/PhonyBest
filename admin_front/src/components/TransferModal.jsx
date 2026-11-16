@@ -251,11 +251,16 @@ export default function TransferModal({ isOpen, onClose, onSuccess, defaultRecip
                   <input
                     className="form-input"
                     style={{ paddingRight: 36 }}
-                    placeholder={t("اكتب اسم المستخدم أو ابحث من القائمة...")}
+                    placeholder={t("اكتب اسم المستخدم أو الكود المرجعي...")}
                     value={recipient}
                     onChange={e => {
-                      setRecipient(e.target.value);
-                      const match = usersList.find(u => u.username?.toLowerCase() === e.target.value.toLowerCase().trim());
+                      const val = e.target.value;
+                      setRecipient(val);
+                      const term = val.toLowerCase().trim();
+                      const match = usersList.find(u => 
+                        u.username?.toLowerCase() === term || 
+                        (u.ref_code && u.ref_code.toLowerCase() === term)
+                      );
                       setSelectedUser(match || null);
                     }}
                     list="users-datalist"
@@ -263,7 +268,7 @@ export default function TransferModal({ isOpen, onClose, onSuccess, defaultRecip
                   <datalist id="users-datalist">
                     {usersList.map(u => (
                       <option key={u.id} value={u.username}>
-                        {u.full_name ? `${u.full_name} (@${u.username})` : u.username}
+                        {u.full_name ? `${u.full_name} (@${u.username})` : u.username} {u.ref_code ? `[${u.ref_code}]` : ''}
                       </option>
                     ))}
                   </datalist>
@@ -274,7 +279,11 @@ export default function TransferModal({ isOpen, onClose, onSuccess, defaultRecip
                     borderRadius: 6, marginTop: 4, background: 'var(--bg-card)'
                   }}>
                     {usersList
-                      .filter(u => u.username.toLowerCase().includes(recipient.toLowerCase()) || (u.full_name && u.full_name.toLowerCase().includes(recipient.toLowerCase())))
+                      .filter(u => 
+                        u.username.toLowerCase().includes(recipient.toLowerCase().trim()) || 
+                        (u.full_name && u.full_name.toLowerCase().includes(recipient.toLowerCase().trim())) ||
+                        (u.ref_code && u.ref_code.toLowerCase().includes(recipient.toLowerCase().trim()))
+                      )
                       .slice(0, 5)
                       .map(u => (
                         <div
@@ -282,13 +291,29 @@ export default function TransferModal({ isOpen, onClose, onSuccess, defaultRecip
                           onClick={() => handleSelectUser(u)}
                           style={{
                             padding: '8px 12px', fontSize: 12, cursor: 'pointer',
-                            display: 'flex', justifyContent: 'space-between',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                             borderBottom: '1px solid var(--border)'
                           }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <span style={{ fontWeight: 600 }}>{u.full_name || u.username} (@{u.username})</span>
+                          <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {u.full_name || u.username} (@{u.username})
+                            {u.ref_code && (
+                              <span style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                fontFamily: 'monospace',
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                background: 'rgba(99, 102, 241, 0.15)',
+                                color: '#6366f1',
+                                border: '1px solid rgba(99, 102, 241, 0.3)'
+                              }}>
+                                {u.ref_code}
+                              </span>
+                            )}
+                          </span>
                           <span style={{ color: 'var(--text-muted)' }}>{parseFloat(u.wallet || 0).toLocaleString()} د.ج</span>
                         </div>
                       ))}

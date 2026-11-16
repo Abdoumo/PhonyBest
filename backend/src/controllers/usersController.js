@@ -10,7 +10,7 @@ const getUsers = async (req, res) => {
     const offset = (page - 1) * limit;
 
     let sql = `
-      SELECT u.id, u.username, u.email, u.full_name, u.phone, u.wilaya, u.role, u.wallet, u.debt, u.debt_limit, 
+      SELECT u.id, u.username, u.ref_code, u.email, u.full_name, u.phone, u.wilaya, u.role, u.wallet, u.debt, u.debt_limit, 
              u.profit_percentage, u.status, u.parent_id, u.permissions, u.last_login, u.created_at, u.logo_url,
              COALESCE(u.self_recharge_limit, 0) as self_recharge_limit,
              COALESCE(u.self_recharge_total, 0) as self_recharge_total,
@@ -45,7 +45,7 @@ const getUsers = async (req, res) => {
       params.push(status);
     }
     if (search) {
-      sql += ` AND (username ILIKE $${paramIdx} OR full_name ILIKE $${paramIdx} OR email ILIKE $${paramIdx} OR phone ILIKE $${paramIdx})`;
+      sql += ` AND (u.username ILIKE $${paramIdx} OR u.ref_code ILIKE $${paramIdx} OR u.full_name ILIKE $${paramIdx} OR u.email ILIKE $${paramIdx} OR u.phone ILIKE $${paramIdx})`;
       params.push(`%${search}%`);
       paramIdx++;
     }
@@ -89,7 +89,7 @@ const getUser = async (req, res) => {
     }
 
     const result = await query(
-      `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.wilaya, u.role, u.wallet, u.debt, u.debt_limit, 
+      `SELECT u.id, u.username, u.ref_code, u.email, u.full_name, u.phone, u.wilaya, u.role, u.wallet, u.debt, u.debt_limit, 
               u.profit_percentage, u.status, u.parent_id, u.permissions, u.last_login, u.created_at, u.logo_url,
               COALESCE(u.self_recharge_limit, 0) as self_recharge_limit,
               COALESCE(u.self_recharge_total, 0) as self_recharge_total,
@@ -113,7 +113,8 @@ const getUser = async (req, res) => {
  */
 const createUser = async (req, res) => {
   try {
-    let { username, email, password, full_name, phone, wilaya, role, wallet, debt_limit, profit_percentage, parent_id, permissions } = req.body;
+    let { username, ref_code, email, password, full_name, phone, wilaya, role, wallet, debt_limit, profit_percentage, parent_id, permissions } = req.body;
+    const cleanedRefCode = ref_code ? String(ref_code).trim() : null;
 
     if (req.user.role !== 'ADMIN') {
       parent_id = req.user.id;
@@ -147,9 +148,9 @@ const createUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const result = await query(
-      `INSERT INTO users (username, email, password, full_name, phone, wilaya, role, wallet, debt_limit, profit_percentage, parent_id, permissions)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, username, email, full_name, role, wallet, status, permissions, created_at`,
-      [username, email, hashedPassword, full_name, phone, wilaya || null, role || 'GROSIST', wallet || 0, debt_limit || 0, profit_percentage || 0, parent_id || null, permissions || '{}']
+      `INSERT INTO users (username, ref_code, email, password, full_name, phone, wilaya, role, wallet, debt_limit, profit_percentage, parent_id, permissions)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, username, ref_code, email, full_name, role, wallet, status, permissions, created_at`,
+      [username, cleanedRefCode, email, hashedPassword, full_name, phone, wilaya || null, role || 'GROSIST', wallet || 0, debt_limit || 0, profit_percentage || 0, parent_id || null, permissions || '{}']
     );
 
     res.status(201).json({ success: true, user: result.rows[0] });
@@ -164,7 +165,7 @@ const createUser = async (req, res) => {
  */
 const updateUser = async (req, res) => {
   try {
-    let { full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions, password, self_recharge_limit, self_recharge_total, self_recharge_rule, self_recharge_enabled } = req.body;
+    let { full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions, password, self_recharge_limit, self_recharge_total, self_recharge_rule, self_recharge_enabled, ref_code } = req.body;
     const userId = req.params.id;
 
     if (req.user.role !== 'ADMIN') {
@@ -216,6 +217,7 @@ const updateUser = async (req, res) => {
     }
 
     let updatePasswordSql = '';
+    let updateRefCodeSql = '';
     let queryParams = [
       full_name, email, phone, wilaya, role, status, wallet, debt_limit, profit_percentage, permissions,
       self_recharge_limit !== undefined ? parseFloat(self_recharge_limit) : null,
@@ -228,8 +230,13 @@ const updateUser = async (req, res) => {
 
     if (password && password.trim() !== '') {
       const hashedPassword = await bcrypt.hash(password, 12);
-      updatePasswordSql = `, password = $${paramIndex}`;
+      updatePasswordSql = `, password = $${paramIndex++}`;
       queryParams.push(hashedPassword);
+    }
+
+    if (ref_code !== undefined) {
+      updateRefCodeSql = `, ref_code = $${paramIndex++}`;
+      queryParams.push(ref_code ? String(ref_code).trim() : null);
     }
 
     const result = await query(
@@ -248,10 +255,11 @@ const updateUser = async (req, res) => {
         self_recharge_total = COALESCE($12, self_recharge_total),
         self_recharge_rule = COALESCE($13, self_recharge_rule),
         self_recharge_enabled = COALESCE($14, self_recharge_enabled)
-        ${updatePasswordSql},
+        ${updatePasswordSql}
+        ${updateRefCodeSql},
         updated_at = NOW()
       WHERE id = $15
-      RETURNING id, username, email, full_name, phone, wilaya, role, wallet, debt, status, permissions, self_recharge_limit, self_recharge_total, self_recharge_rule, self_recharge_enabled`,
+      RETURNING id, username, ref_code, email, full_name, phone, wilaya, role, wallet, debt, status, permissions, self_recharge_limit, self_recharge_total, self_recharge_rule, self_recharge_enabled`,
       queryParams
     );
 

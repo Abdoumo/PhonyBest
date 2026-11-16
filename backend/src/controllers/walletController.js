@@ -162,7 +162,10 @@ const transfer = async (req, res) => {
     }
 
     if (!recipientId && username) {
-      const userRes = await query('SELECT id FROM users WHERE username = $1', [username.trim()]);
+      const userRes = await query(
+        `SELECT id FROM users WHERE username = $1 OR (ref_code IS NOT NULL AND ref_code != '' AND LOWER(ref_code) = LOWER($1))`,
+        [username.trim()]
+      );
       if (userRes.rows.length === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
       recipientId = userRes.rows[0].id;
     }

@@ -30,7 +30,7 @@ export default function ClientsPage() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedConfigClient, setSelectedConfigClient] = useState(null);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ username: '', email: '', password: '', full_name: '', phone: '', wilaya: '', role: 'GROSIST', status: 'active', wallet: 0 });
+  const [form, setForm] = useState({ username: '', ref_code: '', email: '', password: '', full_name: '', phone: '', wilaya: '', role: 'GROSIST', status: 'active', wallet: 0 });
   const [debtForm, setDebtForm] = useState({ type: 'add_debt', amount: '', notes: '' });
 
   const load = () => {
@@ -68,14 +68,14 @@ export default function ClientsPage() {
       }
       setShowModal(false);
       setEditId(null);
-      setForm({ username: '', email: '', password: '', full_name: '', phone: '', wilaya: '', role: 'GROSIST', status: 'active', wallet: 0 });
+      setForm({ username: '', ref_code: '', email: '', password: '', full_name: '', phone: '', wilaya: '', role: 'GROSIST', status: 'active', wallet: 0 });
       load();
     } catch (e) { alert(e.response?.data?.error || t('خطأ')); }
   };
 
   const handleEdit = (u) => {
     setEditId(u.id);
-    setForm({ username: u.username || '', email: u.email || '', password: '', full_name: u.full_name || '', phone: u.phone || '', wilaya: u.wilaya || '', role: u.role || 'CLIENT', status: u.status || 'active', wallet: u.wallet || 0 });
+    setForm({ username: u.username || '', ref_code: u.ref_code || '', email: u.email || '', password: '', full_name: u.full_name || '', phone: u.phone || '', wilaya: u.wilaya || '', role: u.role || 'CLIENT', status: u.status || 'active', wallet: u.wallet || 0 });
     setShowModal(true);
   };
 
@@ -261,7 +261,7 @@ export default function ClientsPage() {
           <div className="filters-responsive" style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 500 }}>
             <div className="header-search" style={{ flex: 1 }}>
               <FiSearch />
-              <input placeholder={t("البحث بالاسم، اسم المستخدم، الهاتف أو الولاية...")} value={search} onChange={e => setSearch(e.target.value)} />
+              <input placeholder={t("البحث بالاسم، اسم المستخدم، الكود المرجعي، الهاتف أو الولاية...")} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             {filterTab === 'all' && (
               <select className="form-select" style={{ width: 150 }} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
@@ -298,9 +298,25 @@ export default function ClientsPage() {
                       {u.full_name?.charAt(0) || u.username?.charAt(0)}
                     </div>
                     <div>
-                      <Link to={`/clients/${u.id}`} style={{ fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>
-                        {u.full_name || u.username}
-                      </Link>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Link to={`/clients/${u.id}`} style={{ fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>
+                          {u.full_name || u.username}
+                        </Link>
+                        {u.ref_code && (
+                          <span style={{ 
+                            fontSize: 10, 
+                            fontWeight: 800, 
+                            fontFamily: 'monospace', 
+                            padding: '1px 6px', 
+                            borderRadius: 4, 
+                            background: 'rgba(99, 102, 241, 0.15)', 
+                            color: '#6366f1',
+                            border: '1px solid rgba(99, 102, 241, 0.3)'
+                          }} title={t('كود العميل المرجعي')}>
+                            {u.ref_code}
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{u.username}</div>
                     </div>
                   </div>
@@ -432,9 +448,15 @@ export default function ClientsPage() {
               <h3 className="modal-title">{editId ? t('تعديل المستخدم') : t('إنشاء مستخدم')}</h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
             </div>
-            <div className="form-group">
-              <label className="form-label">{t('اسم المستخدم')}</label>
-              <input className="form-input" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} disabled={!!editId} />
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">{t('اسم المستخدم')}</label>
+                <input className="form-input" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} disabled={!!editId} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t('كود العميل المرجعي (Ref Code)')}</label>
+                <input className="form-input" placeholder="e.g. mh01" value={form.ref_code || ''} onChange={e => setForm({ ...form, ref_code: e.target.value })} />
+              </div>
             </div>
             <div className="grid-2">
               <div className="form-group">

@@ -16,6 +16,7 @@ const createTables = async () => {
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(50) UNIQUE NOT NULL,
+        ref_code VARCHAR(50),
         email VARCHAR(100) UNIQUE,
         password VARCHAR(255) NOT NULL,
         full_name VARCHAR(100),
@@ -419,6 +420,8 @@ const createTables = async () => {
       await client.query(`ALTER TABLE transfers DROP CONSTRAINT IF EXISTS transfers_type_check`);
       await client.query(`ALTER TABLE transfers ADD CONSTRAINT transfers_type_check CHECK (type IN ('transfer','deposit','withdrawal','debt_payment','debt','cash','payment','debt_recovery','cash_recovery','payment_recovery','self_recharge','profit_transfer'))`);
       await client.query(`ALTER TABLE transfers ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100)`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_code VARCHAR(50)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_users_ref_code ON users(ref_code)`);
       console.log('✅ Migrations applied successfully');
     } catch (e) {
       console.log('⚠️ Migration note:', e.message);

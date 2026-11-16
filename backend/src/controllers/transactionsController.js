@@ -61,7 +61,7 @@ const getTransactions = async (req, res) => {
 
     if (search) {
       whereClauses.push(
-        `(u.username ILIKE $${paramIndex} OR u.full_name ILIKE $${paramIndex} OR t.phone_number ILIKE $${paramIndex} OR CAST(t.id AS TEXT) ILIKE $${paramIndex} OR t.metadata::text ILIKE $${paramIndex})`
+        `(u.username ILIKE $${paramIndex} OR u.full_name ILIKE $${paramIndex} OR u.ref_code ILIKE $${paramIndex} OR t.phone_number ILIKE $${paramIndex} OR CAST(t.id AS TEXT) ILIKE $${paramIndex} OR t.metadata::text ILIKE $${paramIndex})`
       );
       params.push(`%${search}%`);
       paramIndex++;
@@ -79,7 +79,7 @@ const getTransactions = async (req, res) => {
     // Get transactions with user details and sender/recipient information
     const txQuery = `
       SELECT t.*, 
-             u.username as client_name, u.full_name as client_full_name,
+             u.username as client_name, u.full_name as client_full_name, u.ref_code as client_ref_code,
              p.username as processed_by_name, p.full_name as processed_by_full_name,
              COALESCE(t.metadata->>'notes', t.metadata->>'transfer_type', '') as notes_text
       FROM transactions t
