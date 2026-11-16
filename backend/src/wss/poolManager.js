@@ -12,7 +12,7 @@ async function syncPools(nodeId, pools) {
 
   try {
     const parsedPools = pools.map((p, idx) => {
-      const poolId = p.pool_id != null ? p.pool_id : (p.id != null ? p.id : idx + 1);
+      const poolId = String(p.pool_id != null ? p.pool_id : (p.id != null ? p.id : `pool_${idx + 1}`)).trim();
       const name = p.name || p.operator || `Pool ${poolId}`;
       const dongleCount = p.dongle_count || (p.dongles ? p.dongles.length : 0);
       const onlineCount = p.online_count != null ? p.online_count : (p.online ? 1 : dongleCount);
@@ -39,7 +39,7 @@ async function syncPools(nodeId, pools) {
     const reportedPoolIds = parsedPools.map(p => p.poolId);
     if (reportedPoolIds.length > 0) {
       await query(
-        'DELETE FROM wss_pools WHERE node_id = $1 AND pool_id != ALL($2)',
+        'DELETE FROM wss_pools WHERE node_id = $1 AND pool_id != ALL($2::text[])',
         [nodeId, reportedPoolIds]
       );
     }

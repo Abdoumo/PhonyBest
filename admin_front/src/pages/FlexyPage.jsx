@@ -115,10 +115,16 @@ export default function FlexyPage() {
         payload.dongle_id = selectedModem;
       }
       const { data } = await API.post('/flexy/send', payload);
-      setResult({ success: true, msg: `تم إرسال فليكسي! معاملة #${data.transaction.id}` });
-      fetchHistory();
+      if (data.success) {
+        setResult({ success: true, msg: `تم إرسال فليكسي بنجاح! معاملة #${data.transaction?.id || ''}` });
+        fetchHistory();
+      } else {
+        const errorDetail = data.error || data.transaction?.error_message || 'فشلت العملية';
+        setResult({ success: false, msg: `فشل: ${errorDetail}` });
+      }
     } catch (err) {
-      setResult({ success: false, msg: err.response?.data?.error || 'فشل' });
+      const errorDetail = err.response?.data?.error || err.response?.data?.message || err.message || 'فشلت العملية';
+      setResult({ success: false, msg: `فشل: ${errorDetail}` });
     }
     setLoading(false);
   };

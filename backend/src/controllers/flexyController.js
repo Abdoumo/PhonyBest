@@ -192,23 +192,40 @@ const sendFlexy = async (req, res) => {
         io.to(`user_${userId}`).emit('transaction_update', { ...transaction, status: finalStatus });
       }
 
+      // Human-readable error message translation
+      let friendlyError = errorMsg;
+      if (errorMsg) {
+        const errLower = errorMsg.toLowerCase();
+        if (errLower.includes('insufficient balance') || errLower.includes('solde insuffisant')) {
+          friendlyError = 'رصيد الشريحة في المودم غير كافٍ لإتمام التعبئة (Insufficient balance on SIM)';
+        } else if (errLower.includes('no modemgrid node available')) {
+          friendlyError = 'لا يوجد جهاز ModemGrid أو مودم متصل لهذا المشغل حالياً';
+        } else if (errLower.includes('timed out')) {
+          friendlyError = 'انتهت مهلة انتظار استجابة المودم (Request Timeout)';
+        } else if (errLower.includes('node not connected')) {
+          friendlyError = 'جهاز ModemGrid غير متصل حالياً';
+        }
+      }
+
       return res.json({
         success: finalStatus === 'success',
+        error: finalStatus === 'success' ? null : (friendlyError || 'فشلت العملية'),
         transaction: {
           ...transaction,
           status: finalStatus,
           profit: adminProfit,
           cost: adminCost,
           clientProfit,
-          error_message: errorMsg,
+          error_message: friendlyError || errorMsg,
           wss_result: wssResult?.result || null,
         },
       });
     } else {
+      const notAvailMsg = 'لا يوجد جهاز ModemGrid أو مودم متصل لهذا المشغل حالياً (No ModemGrid node available for this operator)';
       // No ModemGrid node available — mark as failed
       await query(
-        `UPDATE transactions SET status = 'failed', error_message = 'No ModemGrid node available', updated_at = NOW() WHERE id = $1`,
-        [transaction.id]
+        `UPDATE transactions SET status = 'failed', error_message = $1, updated_at = NOW() WHERE id = $2`,
+        [notAvailMsg, transaction.id]
       );
 
       // Refund wallet
@@ -218,8 +235,8 @@ const sendFlexy = async (req, res) => {
 
       return res.status(503).json({
         success: false,
-        error: 'No ModemGrid node available for this operator',
-        transaction: { ...transaction, status: 'failed' },
+        error: notAvailMsg,
+        transaction: { ...transaction, status: 'failed', error_message: notAvailMsg },
       });
     }
   } catch (err) {

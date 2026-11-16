@@ -117,11 +117,17 @@ export default function FlexyGrosPage() {
         payload.dongle_id = selectedModem;
       }
       const { data } = await API.post('/flexy/send', payload);
-      setResult({ success: true, msg: `تم إرسال فليكسي! معاملة #${data.transaction.id}` });
-      fetchHistory();
-      fetchGrosDetails();
+      if (data.success) {
+        setResult({ success: true, msg: `تم إرسال فليكسي! معاملة #${data.transaction?.id || ''}` });
+        fetchHistory();
+        fetchGrosDetails();
+      } else {
+        const errorDetail = data.error || data.transaction?.error_message || 'فشلت العملية';
+        setResult({ success: false, msg: `فشل: ${errorDetail}` });
+      }
     } catch (err) {
-      setResult({ success: false, msg: err.response?.data?.error || 'فشل في العملية' });
+      const errorDetail = err.response?.data?.error || err.response?.data?.message || err.message || 'فشل في العملية';
+      setResult({ success: false, msg: `فشل: ${errorDetail}` });
     }
     setLoading(false);
   };

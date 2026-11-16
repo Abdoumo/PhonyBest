@@ -290,7 +290,7 @@ const createTables = async () => {
         operator VARCHAR(50),
         online BOOLEAN DEFAULT false,
         balance DECIMAL(12,2),
-        pool_ids INTEGER[],
+        pool_ids TEXT[] DEFAULT '{}',
         last_updated TIMESTAMP DEFAULT NOW(),
         UNIQUE(node_id, dongle_id)
       );
@@ -301,7 +301,7 @@ const createTables = async () => {
       CREATE TABLE IF NOT EXISTS wss_pools (
         id SERIAL PRIMARY KEY,
         node_id INTEGER REFERENCES wss_nodes(id) ON DELETE CASCADE,
-        pool_id INTEGER NOT NULL,
+        pool_id VARCHAR(100) NOT NULL,
         name VARCHAR(200),
         dongle_count INTEGER DEFAULT 0,
         online_count INTEGER DEFAULT 0,
@@ -422,6 +422,23 @@ const createTables = async () => {
       await client.query(`ALTER TABLE transfers ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100)`);
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_code VARCHAR(50)`);
       await client.query(`CREATE INDEX IF NOT EXISTS idx_users_ref_code ON users(ref_code)`);
+
+      // Migrate wss_dongles pool_ids and wss_pools pool_id to support string / UUID IDs from ModemGrid
+      try {
+        await client.query(`ALTER TABLE wss_dongles DROP COLUMN IF EXISTS pool_ids;`);
+        await client.query(`ALTER TABLE wss_dongles ADD COLUMN pool_ids TEXT[] DEFAULT '{}';`);
+      } catch (eDonglePool) {
+        console.log('⚠️ Dongle pool_ids migration:', eDonglePool.message);
+      }
+      try {
+        await client.query(`DELETE FROM wss_pools;`);
+        await client.query(`ALTER TABLE wss_pools DROP CONSTRAINT IF EXISTS wss_pools_node_id_pool_id_key;`);
+        await client.query(`ALTER TABLE wss_pools ALTER COLUMN pool_id TYPE VARCHAR(100);`);
+        await client.query(`ALTER TABLE wss_pools ADD CONSTRAINT wss_pools_node_id_pool_id_key UNIQUE(node_id, pool_id);`);
+      } catch (ePool) {
+        console.log('⚠️ Pool pool_id migration:', ePool.message);
+      }
+
       console.log('✅ Migrations applied successfully');
     } catch (e) {
       console.log('⚠️ Migration note:', e.message);

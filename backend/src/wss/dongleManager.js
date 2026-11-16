@@ -21,7 +21,8 @@ async function syncDongles(nodeId, dongles) {
       const name = d.name || d.modem_id || d.dongle_id || `Modem ${dongleId}`;
       const operator = (d.operator || 'unknown').trim();
       const balance = (d.balance != null && !isNaN(parseFloat(d.balance))) ? parseFloat(d.balance) : null;
-      const poolIds = Array.isArray(d.pool_ids) ? d.pool_ids : (d.pool_id != null ? [d.pool_id] : []);
+      const rawPoolIds = Array.isArray(d.pool_ids) ? d.pool_ids : (d.pool_id != null ? [d.pool_id] : []);
+      const poolIds = rawPoolIds.map(id => String(id));
 
       return {
         dongleId,
