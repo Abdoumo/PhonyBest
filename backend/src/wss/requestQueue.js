@@ -27,8 +27,14 @@ async function enqueue(nodeId, apiName, variables, transactionId) {
   // Build the message to send to the node (per WSS protocol — no request_id, node generates it)
   const message = {
     api_name: apiName,
+    apiName: apiName,
     variables: variables,
+    vars: variables,
   };
+  if (variables.dongle_id || variables.target_modem || variables.modem_id) {
+    message.dongle_id = variables.dongle_id || variables.target_modem || variables.modem_id;
+    message.modem_id = variables.dongle_id || variables.target_modem || variables.modem_id;
+  }
 
   console.log(`\n======================================================`);
   console.log(`🚀 SENDING REQUEST TO MODEMGRID NODE ${nodeId}:`);

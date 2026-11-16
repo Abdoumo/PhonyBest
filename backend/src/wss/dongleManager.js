@@ -11,7 +11,29 @@ async function syncDongles(nodeId, dongles) {
   if (!Array.isArray(dongles)) return;
 
   try {
-    const incomingDongleIds = dongles.map(d => d.dongle_id);
+    const parsedDongles = dongles.map((d, index) => {
+      const dongleId = String(d.dongle_id || d.modem_id || d.id || `dongle_${index + 1}`).trim();
+      const isOnline = Boolean(
+        d.online === true ||
+        d.connected === true ||
+        ['idle', 'ready', 'active', 'online', 'busy', 'connected'].includes(String(d.status || '').toLowerCase())
+      );
+      const name = d.name || d.modem_id || d.dongle_id || `Modem ${dongleId}`;
+      const operator = (d.operator || 'unknown').trim();
+      const balance = (d.balance != null && !isNaN(parseFloat(d.balance))) ? parseFloat(d.balance) : null;
+      const poolIds = Array.isArray(d.pool_ids) ? d.pool_ids : (d.pool_id != null ? [d.pool_id] : []);
+
+      return {
+        dongleId,
+        name,
+        operator,
+        isOnline,
+        balance,
+        poolIds,
+      };
+    });
+
+    const incomingDongleIds = parsedDongles.map(d => d.dongleId);
 
     // Delete any old "ghost" dongles for this node that are not in the current sync list
     if (incomingDongleIds.length > 0) {
@@ -25,7 +47,7 @@ async function syncDongles(nodeId, dongles) {
       await query('UPDATE wss_dongles SET online = false WHERE node_id = $1 AND dongle_id = ANY($2::text[])', [nodeId, incomingDongleIds]);
     }
 
-    for (const dongle of dongles) {
+    for (const d of parsedDongles) {
       await query(`
         INSERT INTO wss_dongles (node_id, dongle_id, name, operator, online, balance, pool_ids, last_updated)
         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
@@ -38,12 +60,12 @@ async function syncDongles(nodeId, dongles) {
           last_updated = NOW()
       `, [
         nodeId,
-        dongle.dongle_id,
-        dongle.name || dongle.dongle_id,
-        dongle.operator || 'unknown',
-        dongle.online || false,
-        dongle.balance != null ? dongle.balance : null,
-        dongle.pool_ids || [],
+        d.dongleId,
+        d.name,
+        d.operator,
+        d.isOnline,
+        d.balance,
+        d.poolIds,
       ]);
     }
   } catch (err) {

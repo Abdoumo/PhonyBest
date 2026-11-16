@@ -65,13 +65,14 @@ const rechargeIdoom = async (req, res) => {
 
       try {
         const mgResponse = await modemGridService.executeAndWaitApi(apiName, variables);
+        const isMgSuccess = mgResponse.status === 'completed' || mgResponse.status === 'success';
         wssResult = {
-           status: mgResponse.status === 'completed' ? 'completed' : 'failed',
+           status: isMgSuccess ? 'completed' : 'failed',
            request_id: mgResponse.session_id,
            modem_id: mgResponse.modem_id || 'modemgrid',
            result: mgResponse
         };
-        finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
+        finalStatus = isMgSuccess ? 'success' : 'failed';
         errorMsg = mgResponse.error || null;
         targetInfo = { nodeName: 'external_modemgrid', apiName };
       } catch (e) {
@@ -87,7 +88,9 @@ const rechargeIdoom = async (req, res) => {
         targetInfo = target;
         const variables = {
           phone_number: phone_number || ssuid,
+          phone: phone_number || ssuid,
           price: String(amount),
+          amount: amount,
           ssuid: ssuid || '',
           type: type || 'adsl',
         };
@@ -96,7 +99,7 @@ const rechargeIdoom = async (req, res) => {
           wssResult = await requestQueue.enqueue(
             target.nodeId, target.apiName, variables, transaction.id
           );
-          finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
+          finalStatus = (wssResult.status === 'completed' || wssResult.status === 'success') ? 'success' : 'failed';
           errorMsg = wssResult.error || null;
         } catch (wssError) {
           errorMsg = wssError.message;

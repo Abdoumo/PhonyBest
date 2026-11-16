@@ -55,10 +55,15 @@ async function handleRegister(ws, node, data) {
 
   // Update node status in DB
   const ip = ws._socket?.remoteAddress || 'unknown';
+  const metadata = {
+    ...(node.metadata || {}),
+    ...(data.apis ? { apis: data.apis } : {}),
+    ...(data.version ? { version: data.version } : {}),
+  };
   await query(
     `UPDATE wss_nodes SET status = 'online', ip_address = $1, last_seen = NOW(), 
-     dongle_count = $2, online_count = $3, updated_at = NOW() WHERE id = $4`,
-    [ip, dongle_count || 0, online_count || 0, node.id]
+     dongle_count = $2, online_count = $3, metadata = $4, updated_at = NOW() WHERE id = $5`,
+    [ip, dongle_count || 0, online_count || 0, JSON.stringify(metadata), node.id]
   );
 
   // Sync pools and dongles
@@ -97,8 +102,17 @@ async function handleStatusUpdate(ws, data) {
 
   // Update node last_seen and counts
   await query(
-    `UPDATE wss_nodes SET last_seen = NOW(), dongle_count = $1, online_count = $2, updated_at = NOW() WHERE id = $3`,
-    [dongle_count || 0, online_count || 0, nodeId]
+    `UPDATE wss_nodes SET last_seen = NOW(), dongle_count = $1, online_count = $2, 
+     metadata = metadata || $3, updated_at = NOW() WHERE id = $4`,
+    [
+      dongle_count || 0,
+      online_count || 0,
+      JSON.stringify({
+        ...(data.apis ? { apis: data.apis } : {}),
+        ...(data.version ? { version: data.version } : {}),
+      }),
+      nodeId
+    ]
   );
 
   // Sync pools and dongles

@@ -11,8 +11,32 @@ async function syncPools(nodeId, pools) {
   if (!Array.isArray(pools)) return;
 
   try {
+    const parsedPools = pools.map((p, idx) => {
+      const poolId = p.pool_id != null ? p.pool_id : (p.id != null ? p.id : idx + 1);
+      const name = p.name || p.operator || `Pool ${poolId}`;
+      const dongleCount = p.dongle_count || (p.dongles ? p.dongles.length : 0);
+      const onlineCount = p.online_count != null ? p.online_count : (p.online ? 1 : dongleCount);
+      const totalBalance = (p.total_balance != null && !isNaN(parseFloat(p.total_balance))) 
+        ? parseFloat(p.total_balance) 
+        : ((p.balance != null && !isNaN(parseFloat(p.balance))) ? parseFloat(p.balance) : 0);
+      const highestBalance = (p.highest_balance != null && !isNaN(parseFloat(p.highest_balance)))
+        ? parseFloat(p.highest_balance)
+        : totalBalance;
+      const apiNames = Array.isArray(p.apis) ? p.apis : (Array.isArray(p.api_names) ? p.api_names : []);
+
+      return {
+        poolId,
+        name,
+        dongleCount,
+        onlineCount,
+        totalBalance,
+        highestBalance,
+        apiNames
+      };
+    });
+
     // Remove old pools for this node that are no longer reported
-    const reportedPoolIds = pools.map(p => p.pool_id);
+    const reportedPoolIds = parsedPools.map(p => p.poolId);
     if (reportedPoolIds.length > 0) {
       await query(
         'DELETE FROM wss_pools WHERE node_id = $1 AND pool_id != ALL($2)',
@@ -20,7 +44,7 @@ async function syncPools(nodeId, pools) {
       );
     }
 
-    for (const pool of pools) {
+    for (const pool of parsedPools) {
       await query(`
         INSERT INTO wss_pools (node_id, pool_id, name, dongle_count, online_count, total_balance, highest_balance, api_names, last_updated)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
@@ -34,13 +58,13 @@ async function syncPools(nodeId, pools) {
           last_updated = NOW()
       `, [
         nodeId,
-        pool.pool_id,
-        pool.name || `Pool ${pool.pool_id}`,
-        pool.dongle_count || 0,
-        pool.online_count || 0,
-        pool.total_balance || 0,
-        pool.highest_balance || 0,
-        pool.apis || [],
+        pool.poolId,
+        pool.name,
+        pool.dongleCount,
+        pool.onlineCount,
+        pool.totalBalance,
+        pool.highestBalance,
+        pool.apiNames,
       ]);
     }
   } catch (err) {

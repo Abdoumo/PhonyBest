@@ -68,15 +68,16 @@ const sendFlexy = async (req, res) => {
 
       try {
         const mgResponse = await modemGridService.executeAndWaitApi(apiName, variables);
+        const isMgSuccess = mgResponse.status === 'completed' || mgResponse.status === 'success';
         wssResult = {
-           status: mgResponse.status === 'completed' ? 'completed' : 'failed',
+           status: isMgSuccess ? 'completed' : 'failed',
            request_id: mgResponse.session_id,
            modem_id: mgResponse.modem_id || 'modemgrid',
            result: mgResponse,
            duration: 0,
            raw_data: mgResponse,
         };
-        finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
+        finalStatus = isMgSuccess ? 'success' : 'failed';
         errorMsg = mgResponse.error || null;
         targetInfo = { nodeName: 'external_modemgrid', poolName: 'external', apiName };
       } catch (e) {
@@ -90,14 +91,21 @@ const sendFlexy = async (req, res) => {
       
       if (target) {
         targetInfo = target;
-        const variables = customVariables || {
+        const targetModemId = target.dongleId || dongle_id;
+        const variables = {
           phone_number: number,
+          phone: number,
           price: String(amount),
+          amount: numAmount,
+          amount_str: String(amount),
+          operator: operator.toLowerCase(),
+          ...(customVariables || {}),
         };
         if (offer && !variables.offer) variables.offer = offer;
-        if (dongle_id) {
-          variables.dongle_id = dongle_id;
-          variables.target_modem = dongle_id;
+        if (targetModemId) {
+          variables.dongle_id = targetModemId;
+          variables.target_modem = targetModemId;
+          variables.modem_id = targetModemId;
         }
 
         try {
@@ -107,7 +115,7 @@ const sendFlexy = async (req, res) => {
             variables,
             transaction.id
           );
-          finalStatus = wssResult.status === 'completed' ? 'success' : 'failed';
+          finalStatus = (wssResult.status === 'completed' || wssResult.status === 'success') ? 'success' : 'failed';
           errorMsg = wssResult.error || null;
         } catch (wssError) {
           errorMsg = wssError.message;

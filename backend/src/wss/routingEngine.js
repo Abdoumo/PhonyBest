@@ -1,16 +1,16 @@
 /**
  * WSS Routing Engine
- * Selects the best ModemGrid node and pool for a topup request
+ * Selects the best ModemGrid node, modem, and pool for a topup request
  */
 const { query } = require('../config/database');
 const nodeManager = require('./nodeManager');
 
 // Operator name mapping — maps system operator names to ModemGrid operator patterns
 const OPERATOR_MAP = {
-  'mobilis': ['mobilis', 'alg mobilis'],
-  'djezzy': ['djezzy'],
-  'ooredoo': ['ooredoo'],
-  'idoom': ['idoom', 'algerie telecom'],
+  'mobilis': ['mobilis', 'alg mobilis', '60301', '603 01', 'atm'],
+  'djezzy': ['djezzy', 'ota', '60302', '603 02', 'optimum'],
+  'ooredoo': ['ooredoo', 'wataniya', 'nedjma', '60303', '603 03', 'watania'],
+  'idoom': ['idoom', 'algerie telecom', 'at', 'algerietelecom', 'algerie_telecom'],
 };
 
 /**
@@ -20,152 +20,195 @@ const OPERATOR_MAP = {
  * @param {number} amount - The topup amount
  * @param {string} apiName - Optional specific API name to use
  * @param {string} dongleId - Optional specific modem/dongle ID to target
- * @param {string} serviceType - Optional service type (e.g. 'idoom')
- * @param {string} offerName - Optional offer name (e.g. 'fibre')
- * @returns {Object|null} - { nodeId, apiName } or null if no suitable target found
+ * @param {string} serviceType - Optional service type (e.g. 'flexy', 'flexy_gros', 'idoom')
+ * @param {string} offerName - Optional offer name
+ * @returns {Object|null} - { nodeId, apiName, poolName, nodeName, totalBalance, dongleId } or null
  */
 async function selectBestTarget(operator, amount, apiName = null, dongleId = null, serviceType = null, offerName = null) {
-  let mappedApiName = apiName;
-  if (!mappedApiName && serviceType && offerName) {
-    const mappingResult = await query(
-      'SELECT modemgrid_api_name FROM offer_api_mappings WHERE service_type = $1 AND operator = $2 AND offer_name = $3 AND is_active = true',
-      [serviceType, operator, offerName]
-    );
-    if (mappingResult.rows.length > 0) {
-      mappedApiName = mappingResult.rows[0].modemgrid_api_name;
-    }
-  }
+  const op = (operator || '').toLowerCase().trim();
+  const numAmount = parseFloat(amount) || 0;
 
+  // 1. Check if any ModemGrid nodes are currently connected via WebSocket
   const onlineNodeIds = nodeManager.getOnlineNodeIds();
-  if (onlineNodeIds.length === 0) {
+  if (!onlineNodeIds || onlineNodeIds.length === 0) {
+    console.warn(`[RoutingEngine] No online ModemGrid nodes connected.`);
     return null;
   }
 
-  // Check if there is a specific pool configured for this serviceType
-  let specificPoolId = null;
-  if (serviceType) {
-    const settingsResult = await query("SELECT value FROM settings WHERE key = $1", [`pool_${serviceType}`]);
-    if (settingsResult.rows.length > 0) {
-      try {
-        const val = JSON.parse(settingsResult.rows[0].value);
-        if (val) specificPoolId = parseInt(val, 10);
-      } catch (e) {
-        if (settingsResult.rows[0].value) specificPoolId = parseInt(settingsResult.rows[0].value, 10);
+  // 2. Check for offer API mapping first if serviceType and offerName/apiName provided
+  let mappedApiName = null;
+  if (serviceType && (offerName || apiName)) {
+    const offerToCheck = offerName || apiName;
+    try {
+      const mappingResult = await query(
+        'SELECT modemgrid_api_name FROM offer_api_mappings WHERE service_type = $1 AND operator = $2 AND offer_name = $3 AND is_active = true',
+        [serviceType, op, offerToCheck]
+      );
+      if (mappingResult.rows.length > 0) {
+        mappedApiName = mappingResult.rows[0].modemgrid_api_name;
       }
+    } catch (e) {
+      console.warn('[RoutingEngine] Offer mapping check note:', e.message);
     }
   }
 
-  // Get all pools from online nodes
-  const poolsResult = await query(`
-    SELECT p.*, n.id as node_id, n.name as node_name, n.status as node_status
-    FROM wss_pools p
-    JOIN wss_nodes n ON p.node_id = n.id
-    WHERE n.status = 'online' AND n.id = ANY($1) AND p.online_count > 0
-    ${specificPoolId ? `AND p.pool_id = $2` : ''}
-    ORDER BY p.total_balance DESC
-  `, specificPoolId ? [onlineNodeIds, specificPoolId] : [onlineNodeIds]);
-
-  const pools = poolsResult.rows;
-  if (pools.length === 0) return null;
-
-  // If a specific apiName is requested (or mapped), filter for pools that support it
-  if (mappedApiName) {
-    const matchingPools = pools.filter(p => 
-      p.api_names && p.api_names.includes(mappedApiName)
-    );
-
-    if (matchingPools.length > 0) {
-      // Pick the pool with the highest balance that has enough for the amount
-      const best = matchingPools.find(p => parseFloat(p.total_balance) >= amount) || matchingPools[0];
-      return {
-        nodeId: best.node_id,
-        apiName: mappedApiName,
-        poolName: best.name,
-        nodeName: best.node_name,
-        totalBalance: parseFloat(best.total_balance),
-      };
-    }
-    // If no pool matches the requested API name exactly, we do NOT return null.
-    // Instead, we proceed with operator-based routing and assume 'apiName' is just an offer parameter.
-  }
-
-  // If a specific dongle is requested, find the node that hosts it
+  // 3. CASE A: Specific dongle/modem requested (e.g. chosen from dropdown)
   if (dongleId) {
-    const specificDongleResult = await query(`
-      SELECT d.node_id, d.pool_ids
-      FROM wss_dongles d
-      WHERE d.dongle_id = $1 AND d.node_id = ANY($2) AND d.online = true
-    `, [dongleId, onlineNodeIds]);
-    
-    if (specificDongleResult.rows.length > 0) {
-      const d = specificDongleResult.rows[0];
-      const nResult = await query('SELECT name FROM wss_nodes WHERE id = $1', [d.node_id]);
-      const nodeName = nResult.rows[0]?.name || 'unknown';
-      const guessedApiName = guessApiName(operator, []); 
+    try {
+      const specificDongleResult = await query(`
+        SELECT d.*, n.name as node_name
+        FROM wss_dongles d
+        JOIN wss_nodes n ON d.node_id = n.id
+        WHERE (d.dongle_id = $1 OR d.name = $1)
+          AND d.node_id = ANY($2)
+          AND d.online = true
+        LIMIT 1
+      `, [dongleId, onlineNodeIds]);
 
-      return {
-        nodeId: d.node_id,
-        apiName: mappedApiName || guessedApiName,
-        poolName: 'specific_modem',
-        nodeName: nodeName,
-        totalBalance: amount, // Assume admin selected a modem with enough balance
-        dongleId: dongleId
-      };
+      if (specificDongleResult.rows.length > 0) {
+        const d = specificDongleResult.rows[0];
+        const targetApi = mappedApiName || (apiName && !apiName.includes(' ') ? apiName : null) || guessApiName(op || d.operator, []);
+        return {
+          nodeId: d.node_id,
+          apiName: targetApi,
+          poolName: 'specific_modem',
+          nodeName: d.node_name,
+          totalBalance: parseFloat(d.balance) || numAmount,
+          dongleId: d.dongle_id
+        };
+      }
+    } catch (e) {
+      console.warn('[RoutingEngine] Specific dongle lookup error:', e.message);
     }
   }
 
-  // Operator-based routing
-  const operatorPatterns = OPERATOR_MAP[operator.toLowerCase()] || [operator.toLowerCase()];
+  // 4. Fetch all online dongles on currently online nodes
+  let allOnlineDongles = [];
+  try {
+    const donglesQuery = await query(`
+      SELECT d.*, n.name as node_name
+      FROM wss_dongles d
+      JOIN wss_nodes n ON d.node_id = n.id
+      WHERE d.node_id = ANY($1) AND d.online = true
+      ORDER BY d.last_updated DESC
+    `, [onlineNodeIds]);
+    allOnlineDongles = donglesQuery.rows || [];
+  } catch (e) {
+    console.error('[RoutingEngine] Online dongles fetch error:', e.message);
+  }
 
-  // Find pools whose dongles match the operator
-  // We check the pool's dongles via the wss_dongles table
-  const dongleResult = await query(`
-    SELECT DISTINCT d.node_id, array_agg(DISTINCT unnest_pool_id) as pool_ids
-    FROM wss_dongles d,
-    LATERAL unnest(d.pool_ids) as unnest_pool_id
-    WHERE d.node_id = ANY($1) AND d.online = true AND d.balance >= $2
-    ${specificPoolId ? `AND $3 = ANY(d.pool_ids)` : ''}
-    AND (${operatorPatterns.map((_, i) => `d.operator ILIKE $${i + (specificPoolId ? 4 : 3)}`).join(' OR ')})
-    GROUP BY d.node_id
-  `, specificPoolId 
-    ? [onlineNodeIds, amount, specificPoolId, ...operatorPatterns.map(p => `%${p}%`)]
-    : [onlineNodeIds, amount, ...operatorPatterns.map(p => `%${p}%`)]);
+  // 5. Fetch all pools on online nodes (optional)
+  let pools = [];
+  try {
+    const poolsQuery = await query(`
+      SELECT p.*, n.name as node_name
+      FROM wss_pools p
+      JOIN wss_nodes n ON p.node_id = n.id
+      WHERE n.status = 'online' AND n.id = ANY($1)
+      ORDER BY p.total_balance DESC
+    `, [onlineNodeIds]);
+    pools = poolsQuery.rows || [];
+  } catch (e) {
+    console.warn('[RoutingEngine] Pools fetch note:', e.message);
+  }
 
-  if (dongleResult.rows.length === 0) {
-    // Fallback: try any pool with enough balance on an online node, even without operator matching
-    // This handles cases where operator names don't match exactly
-    const fallbackPools = pools.filter(p => parseFloat(p.total_balance) >= amount);
-    if (fallbackPools.length === 0) return null;
+  // 6. Match Dongles for the Operator
+  const operatorPatterns = OPERATOR_MAP[op] || [op];
 
-    const best = fallbackPools[0];
-    // Use the requested apiName if provided, otherwise try to find an api_name for the operator
-    const finalApiName = mappedApiName || guessApiName(operator, best.api_names);
+  const matchingDongles = allOnlineDongles.filter(d => {
+    if (!d.operator) return false;
+    const dongleOp = d.operator.toLowerCase();
+    return operatorPatterns.some(pat => dongleOp.includes(pat.toLowerCase()));
+  });
+
+  // Candidate selection strategy:
+  // - Priority 1: Dongles matching the operator
+  // - Priority 2: Dongles with 'unknown', empty, or null operator
+  // - Priority 3: If only 1 modem exists on the connected node, assume it's the intended modem
+  let candidates = [];
+  if (matchingDongles.length > 0) {
+    candidates = matchingDongles;
+  } else {
+    const unknownDongles = allOnlineDongles.filter(d => {
+      const dongleOp = (d.operator || '').toLowerCase();
+      return dongleOp === 'unknown' || dongleOp === '' || !dongleOp;
+    });
+    if (unknownDongles.length > 0) {
+      candidates = unknownDongles;
+    } else if (allOnlineDongles.length === 1) {
+      candidates = allOnlineDongles;
+    }
+  }
+
+  if (candidates.length > 0) {
+    // Rank candidates:
+    // 1. Dongles with balance >= amount first
+    // 2. Highest balance descending
+    // 3. Most recently updated
+    candidates.sort((a, b) => {
+      const balA = parseFloat(a.balance) || 0;
+      const balB = parseFloat(b.balance) || 0;
+      const enoughA = balA >= numAmount ? 1 : 0;
+      const enoughB = balB >= numAmount ? 1 : 0;
+      if (enoughA !== enoughB) return enoughB - enoughA;
+      if (balB !== balA) return balB - balA;
+      return new Date(b.last_updated || 0) - new Date(a.last_updated || 0);
+    });
+
+    const chosenDongle = candidates[0];
+
+    // Find if a pool covers this node with API names
+    let poolApis = [];
+    let poolName = 'default_pool';
+    const matchingPool = pools.find(p => p.node_id === chosenDongle.node_id && (p.api_names?.length > 0));
+    if (matchingPool) {
+      poolApis = matchingPool.api_names || [];
+      poolName = matchingPool.name;
+    }
+
+    const finalApiName = mappedApiName || (apiName && !apiName.includes(' ') ? apiName : null) || guessApiName(op, poolApis);
+
     return {
-      nodeId: best.node_id,
+      nodeId: chosenDongle.node_id,
       apiName: finalApiName,
-      poolName: best.name,
-      nodeName: best.node_name,
-      totalBalance: parseFloat(best.total_balance),
+      poolName: poolName,
+      nodeName: chosenDongle.node_name,
+      totalBalance: parseFloat(chosenDongle.balance) || 0,
+      dongleId: chosenDongle.dongle_id,
     };
   }
 
-  // Pick the node with matching dongles that has the most balance
-  for (const row of dongleResult.rows) {
-    const matchingPools = pools.filter(p => 
-      p.node_id === row.node_id && parseFloat(p.total_balance) >= amount
-    );
+  // 7. CASE C: If no dongles found in wss_dongles table, try pools
+  if (pools.length > 0) {
+    const bestPool = pools.find(p => (parseFloat(p.total_balance) || 0) >= numAmount) || pools[0];
+    const finalApiName = mappedApiName || (apiName && !apiName.includes(' ') ? apiName : null) || guessApiName(op, bestPool.api_names || []);
+    return {
+      nodeId: bestPool.node_id,
+      apiName: finalApiName,
+      poolName: bestPool.name,
+      nodeName: bestPool.node_name,
+      totalBalance: parseFloat(bestPool.total_balance) || 0,
+    };
+  }
 
-    if (matchingPools.length > 0) {
-      const best = matchingPools[0];
-      const finalApiName = mappedApiName || guessApiName(operator, best.api_names);
+  // 8. CASE D: Direct fallback to first online node
+  try {
+    const onlineNodeResult = await query(
+      `SELECT id, name FROM wss_nodes WHERE id = ANY($1) AND status = 'online' LIMIT 1`,
+      [onlineNodeIds]
+    );
+    if (onlineNodeResult.rows.length > 0) {
+      const node = onlineNodeResult.rows[0];
       return {
-        nodeId: best.node_id,
-        apiName: finalApiName,
-        poolName: best.name,
-        nodeName: best.node_name,
-        totalBalance: parseFloat(best.total_balance),
+        nodeId: node.id,
+        apiName: mappedApiName || (apiName && !apiName.includes(' ') ? apiName : null) || guessApiName(op, []),
+        poolName: 'direct_node',
+        nodeName: node.name,
+        totalBalance: 0,
       };
     }
+  } catch (e) {
+    console.warn('[RoutingEngine] Fallback online node error:', e.message);
   }
 
   return null;
@@ -174,25 +217,31 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
 /**
  * Guess the best api_name for an operator from available APIs
  */
-function guessApiName(operator, apiNames) {
-  if (!apiNames || apiNames.length === 0) return `topup_${operator.toLowerCase()}`;
+function guessApiName(operator, apiNames = []) {
+  const op = (operator || '').toLowerCase();
   
-  const op = operator.toLowerCase();
-  
-  // Look for operator-specific APIs first
-  const topupApi = apiNames.find(a => a.toLowerCase().includes('topup') && a.toLowerCase().includes(op));
-  if (topupApi) return topupApi;
+  if (Array.isArray(apiNames) && apiNames.length > 0) {
+    // 1. Direct match: e.g. "ooredoo" or "flexy_ooredoo" or "topup_ooredoo"
+    const exactOp = apiNames.find(a => a.toLowerCase() === op || a.toLowerCase() === `flexy_${op}` || a.toLowerCase() === `topup_${op}`);
+    if (exactOp) return exactOp;
 
-  // Look for any API containing the operator name
-  const operatorApi = apiNames.find(a => a.toLowerCase().includes(op));
-  if (operatorApi) return operatorApi;
+    // 2. Contains operator name and topup/flexy
+    const opAction = apiNames.find(a => a.toLowerCase().includes(op) && (a.toLowerCase().includes('topup') || a.toLowerCase().includes('flexy')));
+    if (opAction) return opAction;
 
-  // Look for generic topup APIs
-  const genericTopup = apiNames.find(a => a.toLowerCase().includes('topup') || a.toLowerCase().includes('flexy'));
-  if (genericTopup) return genericTopup;
+    // 3. Contains operator name
+    const opAny = apiNames.find(a => a.toLowerCase().includes(op));
+    if (opAny) return opAny;
 
-  // Fallback to first available API
-  return apiNames[0];
+    // 4. Generic flexy or topup
+    const generic = apiNames.find(a => a.toLowerCase() === 'flexy' || a.toLowerCase() === 'topup' || a.toLowerCase().includes('flexy') || a.toLowerCase().includes('topup'));
+    if (generic) return generic;
+
+    return apiNames[0];
+  }
+
+  // Default fallback when no specific API list is known
+  return op ? `topup_${op}` : 'flexy';
 }
 
 /**
@@ -200,30 +249,35 @@ function guessApiName(operator, apiNames) {
  */
 async function getRoutingSummary() {
   const onlineNodeIds = nodeManager.getOnlineNodeIds();
-  if (onlineNodeIds.length === 0) {
+  if (!onlineNodeIds || onlineNodeIds.length === 0) {
     return { available: false, nodes: 0, operators: [] };
   }
 
-  const result = await query(`
-    SELECT d.operator, COUNT(*) as dongle_count, 
-           COUNT(*) FILTER (WHERE d.online = true) as online_count,
-           COALESCE(SUM(d.balance) FILTER (WHERE d.online = true), 0) as total_balance
-    FROM wss_dongles d
-    JOIN wss_nodes n ON d.node_id = n.id
-    WHERE n.status = 'online' AND n.id = ANY($1)
-    GROUP BY d.operator
-    ORDER BY total_balance DESC
-  `, [onlineNodeIds]);
+  try {
+    const result = await query(`
+      SELECT d.operator, COUNT(*) as dongle_count, 
+             COUNT(*) FILTER (WHERE d.online = true) as online_count,
+             COALESCE(SUM(d.balance) FILTER (WHERE d.online = true), 0) as total_balance
+      FROM wss_dongles d
+      JOIN wss_nodes n ON d.node_id = n.id
+      WHERE n.status = 'online' AND n.id = ANY($1)
+      GROUP BY d.operator
+      ORDER BY total_balance DESC
+    `, [onlineNodeIds]);
 
-  return {
-    available: true,
-    nodes: onlineNodeIds.length,
-    operators: result.rows,
-  };
+    return {
+      available: true,
+      nodes: onlineNodeIds.length,
+      operators: result.rows,
+    };
+  } catch (e) {
+    return { available: true, nodes: onlineNodeIds.length, operators: [] };
+  }
 }
 
 module.exports = {
   selectBestTarget,
   getRoutingSummary,
+  guessApiName,
   OPERATOR_MAP,
 };
