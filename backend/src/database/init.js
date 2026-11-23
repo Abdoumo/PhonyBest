@@ -180,6 +180,38 @@ const createTables = async () => {
       );
     `);
 
+    // SIM orders table (Ooredoo Gold SIMs with geolocation and activation dispatch)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sim_orders (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        operator VARCHAR(30) DEFAULT 'ooredoo',
+        offer_name VARCHAR(100) NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        quantity INTEGER DEFAULT 1,
+        total_price DECIMAL(10,2) NOT NULL,
+        payment_method VARCHAR(30) DEFAULT 'cash' CHECK (payment_method IN ('cash','wallet')),
+        payment_status VARCHAR(30) DEFAULT 'pending' CHECK (payment_status IN ('pending','paid','refunded')),
+        latitude DECIMAL(10, 7),
+        longitude DECIMAL(10, 7),
+        accuracy DECIMAL(10, 2),
+        address TEXT,
+        wilaya VARCHAR(100),
+        full_name VARCHAR(150),
+        phone VARCHAR(50),
+        national_id VARCHAR(100),
+        birth_date VARCHAR(50),
+        credentials_details TEXT,
+        status VARCHAR(30) DEFAULT 'pending' CHECK (status IN ('pending','assigned','in_delivery','completed','cancelled')),
+        assigned_to VARCHAR(150),
+        assigned_agent_phone VARCHAR(50),
+        admin_notes TEXT,
+        activation_status VARCHAR(30) DEFAULT 'pending' CHECK (activation_status IN ('pending','activated','failed')),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
     // Advertisements table
     await client.query(`
       CREATE TABLE IF NOT EXISTS advertisements (
@@ -385,6 +417,8 @@ const createTables = async () => {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_queue_request_id ON wss_request_queue(request_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_events_node ON wss_events(node_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wss_events_date ON wss_events(created_at);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sim_orders_user_id ON sim_orders(user_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sim_orders_status ON sim_orders(status);`);
 
     // Create default admin user
     try {
@@ -409,7 +443,39 @@ const createTables = async () => {
       await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
       await client.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN','SUPER_GRO','GRO','GROSIST','COMMERCANT','CLIENT'))`);
       await client.query(`ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_type_check`);
-      await client.query(`ALTER TABLE transactions ADD CONSTRAINT transactions_type_check CHECK (type IN ('flexy','flexy_gros','idoom','card','buy_cards','transfer_cards','wallet_add','wallet_remove','transfer','debt'))`);
+      await client.query(`ALTER TABLE transactions ADD CONSTRAINT transactions_type_check CHECK (type IN ('flexy','flexy_gros','idoom','card','buy_cards','transfer_cards','wallet_add','wallet_remove','transfer','debt','buy_sim'))`);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS sim_orders (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+          operator VARCHAR(30) DEFAULT 'ooredoo',
+          offer_name VARCHAR(100) NOT NULL,
+          price DECIMAL(10,2) NOT NULL,
+          quantity INTEGER DEFAULT 1,
+          total_price DECIMAL(10,2) NOT NULL,
+          payment_method VARCHAR(30) DEFAULT 'cash' CHECK (payment_method IN ('cash','wallet')),
+          payment_status VARCHAR(30) DEFAULT 'pending' CHECK (payment_status IN ('pending','paid','refunded')),
+          latitude DECIMAL(10, 7),
+          longitude DECIMAL(10, 7),
+          accuracy DECIMAL(10, 2),
+          address TEXT,
+          wilaya VARCHAR(100),
+          full_name VARCHAR(150),
+          phone VARCHAR(50),
+          national_id VARCHAR(100),
+          birth_date VARCHAR(50),
+          credentials_details TEXT,
+          status VARCHAR(30) DEFAULT 'pending' CHECK (status IN ('pending','assigned','in_delivery','completed','cancelled')),
+          assigned_to VARCHAR(150),
+          assigned_agent_phone VARCHAR(50),
+          admin_notes TEXT,
+          activation_status VARCHAR(30) DEFAULT 'pending' CHECK (activation_status IN ('pending','activated','failed')),
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_sim_orders_user_id ON sim_orders(user_id);`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_sim_orders_status ON sim_orders(status);`);
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)`);
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS wilaya VARCHAR(100)`);
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS self_recharge_limit DECIMAL(12,2) DEFAULT 0.00`);

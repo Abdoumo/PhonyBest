@@ -8,7 +8,7 @@ import {
   FiHome, FiZap, FiWifi, FiCreditCard, FiGift, FiUsers,
   FiPercent, FiArrowUpRight, FiPackage, FiBarChart2, FiImage,
   FiSettings, FiSearch, FiBell, FiLogOut, FiMoon, FiSun, FiFileText, FiList, FiMenu, FiX, FiGlobe, FiShield,
-  FiCheck, FiCheckCircle, FiTrash2, FiAlertCircle, FiInfo, FiAlertTriangle, FiRadio, FiLink
+  FiCheck, FiCheckCircle, FiTrash2, FiAlertCircle, FiInfo, FiAlertTriangle, FiRadio, FiLink, FiSmartphone
 } from 'react-icons/fi';
 import { useLanguage } from '../contexts/LanguageContext';
 import SelfRechargeModal from '../components/SelfRechargeModal';
@@ -23,6 +23,7 @@ const navItems = [
     { to: '/idoom', icon: FiWifi, label: 'أيدوم' },
     { to: '/cards', icon: FiCreditCard, label: 'إدارة البطاقات' },
     { to: '/card-orders', icon: FiFileText, label: 'طلبات البطاقات' },
+    { to: '/ooredoo-sims', icon: FiSmartphone, label: 'شرائح أوريدو (Gold)' },
   ]},
   { section: 'الإدارة', items: [
     { to: '/clients', icon: FiUsers, label: 'العملاء' },
@@ -229,9 +230,10 @@ export default function Layout() {
             
             // Default roles
             const defaultRolePerms = {
-              'SUPER_GRO': ['dashboard', 'flexy', 'flexy-gros', 'idoom', 'cards', 'card-orders', 'clients', 'transfers', 'stock', 'transactions'],
-              'GROSIST': ['dashboard', 'flexy', 'flexy-gros', 'idoom', 'cards', 'transfers'],
-              'COMMERCANT': ['dashboard', 'flexy', 'idoom', 'cards']
+              'SUPER_GRO': ['dashboard', 'flexy', 'flexy-gros', 'idoom', 'cards', 'card-orders', 'clients', 'transfers', 'stock', 'transactions', 'ooredoo-sims'],
+              'GROSIST': ['dashboard', 'flexy', 'flexy-gros', 'idoom', 'cards', 'transfers', 'ooredoo-sims'],
+              'GRO': ['dashboard', 'flexy', 'flexy-gros', 'idoom', 'cards', 'transfers', 'ooredoo-sims'],
+              'COMMERCANT': ['dashboard', 'flexy', 'idoom', 'cards', 'ooredoo-sims']
             };
 
             const canSee = (id) => {

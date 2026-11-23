@@ -26,6 +26,7 @@ import TransactionsPage from './pages/TransactionsPage';
 import SecurityKeyPage from './pages/SecurityKeyPage';
 import ModemGridPage from './pages/ModemGridPage';
 import OfferMappingsPage from './pages/OfferMappingsPage';
+import SimOrdersPage from './pages/SimOrdersPage';
 
 function ProtectedRoute({ children }) {
   const { user, initialized } = useSelector(s => s.auth);
@@ -59,6 +60,7 @@ function AppRoutes() {
           <Route path="idoom" element={<IdoomPage />} />
           <Route path="cards" element={<CardsPage />} />
           <Route path="card-orders" element={<CardOrdersPage />} />
+          <Route path="ooredoo-sims" element={<SimOrdersPage />} />
           <Route path="clients" element={<ClientsPage />} />
           <Route path="clients/:id" element={<ClientDetailsPage />} />
           <Route path="client" element={<Navigate to="/clients" replace />} />

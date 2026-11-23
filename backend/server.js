@@ -165,6 +165,7 @@ app.use('/api/v1/wss', require('./src/routes/wssNodes'));
 app.use('/api/v1/analytics', require('./src/routes/analytics'));
 app.use('/api/v1/stock', require('./src/routes/stock'));
 app.use('/api/v1/admin/offer-mappings', require('./src/routes/offerMappings'));
+app.use('/api/v1/sim-orders', require('./src/routes/simOrders'));
 
 // Health check
 app.get('/api/health', (req, res) => {

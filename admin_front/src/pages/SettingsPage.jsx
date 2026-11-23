@@ -43,13 +43,14 @@ export default function SettingsPage() {
     { id: 'stock', name: 'المخزون' },
     { id: 'analytics', name: 'التحليلات' },
     { id: 'ads', name: 'الإعلانات' },
+    { id: 'ooredoo-sims', name: 'شرائح أوريدو (Gold)' },
     { id: 'settings', name: 'الإعدادات' }
   ];
 
   const defaultRolePerms = {
-    'SUPER_GRO': ['dashboard', 'flexy', 'idoom', 'cards', 'card-orders', 'clients', 'transfers', 'stock', 'security-key'],
-    'GROSIST': ['dashboard', 'flexy', 'idoom', 'cards', 'transfers', 'security-key'],
-    'COMMERCANT': ['dashboard', 'flexy', 'idoom', 'cards', 'security-key']
+    'SUPER_GRO': ['dashboard', 'flexy', 'idoom', 'cards', 'card-orders', 'clients', 'transfers', 'stock', 'security-key', 'ooredoo-sims'],
+    'GROSIST': ['dashboard', 'flexy', 'idoom', 'cards', 'transfers', 'security-key', 'ooredoo-sims'],
+    'COMMERCANT': ['dashboard', 'flexy', 'idoom', 'cards', 'security-key', 'ooredoo-sims']
   };
 
   const load = async () => {
