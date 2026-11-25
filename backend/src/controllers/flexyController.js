@@ -2,6 +2,7 @@ const { query } = require('../config/database');
 const routingEngine = require('../wss/routingEngine');
 const requestQueue = require('../wss/requestQueue');
 const modemGridService = require('../services/modemGridService');
+const simOffersService = require('../services/simOffersService');
 
 /**
  * POST /api/v1/flexy/send
@@ -485,4 +486,36 @@ const getFlexyGrosDetails = async (req, res) => {
   }
 };
 
-module.exports = { sendFlexy, getFlexyHistory, bulkFlexy, getOnlineModems, getFlexyGrosDetails };
+/**
+ * GET or POST /api/v1/flexy/sim-offers
+ * Checks SIM profile (Mobilis Sama / PixX, Djezzy Hayla, Ooredoo Yooz) and available offers
+ */
+const checkSimOffersHandler = async (req, res) => {
+  try {
+    const phone = req.query.phone || req.body.phone || req.query.number || req.body.number;
+    const profile = req.query.profile || req.body.profile;
+
+    if (!phone) {
+      return res.status(400).json({ success: false, error: 'يرجى تزويد رقم الهاتف (phone)' });
+    }
+
+    const result = await simOffersService.checkSimOffers(phone, profile);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.json(result);
+  } catch (err) {
+    console.error('checkSimOffersHandler error:', err);
+    return res.status(500).json({ success: false, error: 'حدث خطأ أثناء فحص عروض الشريحة' });
+  }
+};
+
+module.exports = {
+  sendFlexy,
+  getFlexyHistory,
+  bulkFlexy,
+  getOnlineModems,
+  getFlexyGrosDetails,
+  checkSimOffersHandler
+};
