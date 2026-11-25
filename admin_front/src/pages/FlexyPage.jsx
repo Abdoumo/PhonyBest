@@ -99,6 +99,20 @@ export default function FlexyPage() {
           setOperator(data.operator);
         }
         setSelectedCategory('ALL');
+
+        // Automatically put the matching or primary offer when 10 digits are written
+        if (data.offers && data.offers.length > 0) {
+          // If current amount matches an offer, put that offer; otherwise auto-put the first offer
+          const matchingOffer = data.offers.find(o => o.amount === amount);
+          if (matchingOffer) {
+            setOffer(matchingOffer.code);
+          } else if (!offer) {
+            setOffer(data.offers[0].code);
+            if (data.offers[0].amount) {
+              setAmount(data.offers[0].amount);
+            }
+          }
+        }
       } else {
         setSimError(data.error || 'تعذر جلب عروض الشريحة');
         setSimInfo(null);
@@ -112,7 +126,26 @@ export default function FlexyPage() {
     }
   };
 
-  // Trigger auto-check when 10 digits are typed
+  // Automatically watch phone number: the MOMENT 10 digits are written, auto-query and put the offers
+  useEffect(() => {
+    const cleanDigits = String(number || '').replace(/\D/g, '');
+    let finalPhone = cleanDigits.startsWith('213') ? '0' + cleanDigits.slice(3) : cleanDigits;
+
+    if (finalPhone.length === 10) {
+      if (finalPhone !== lastCheckedPhoneRef.current) {
+        checkSimOffers(finalPhone, forcedProfile || null);
+      }
+    } else {
+      if (lastCheckedPhoneRef.current) {
+        lastCheckedPhoneRef.current = '';
+        setSimInfo(null);
+        setSimError(null);
+        setOffer('');
+      }
+    }
+  }, [number, forcedProfile]);
+
+  // Handle phone input change
   const handlePhoneChange = (val) => {
     setNumber(val);
     setShowDropdown(true);
@@ -129,10 +162,6 @@ export default function FlexyPage() {
       setOffer('');
       setSelectedModem('');
       setSimInfo(null);
-    }
-
-    if (cleanDigits.length === 10 && cleanDigits !== lastCheckedPhoneRef.current) {
-      checkSimOffers(cleanDigits, forcedProfile || null);
     }
   };
 

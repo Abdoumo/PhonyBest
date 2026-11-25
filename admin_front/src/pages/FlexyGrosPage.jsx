@@ -26,10 +26,42 @@ export default function FlexyGrosPage() {
   const [selectedModem, setSelectedModem] = useState('');
   const [history, setHistory] = useState([]);
 
+  // SIM Profile State
+  const [simInfo, setSimInfo] = useState(null);
+  const [simLoading, setSimLoading] = useState(false);
+  const [lastCheckedPhone, setLastCheckedPhone] = useState('');
+
   // Détails Flexy gros state
   const [grosDetails, setGrosDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(true);
+
+  // Automatically watch phone number: the MOMENT 10 digits are written, auto-check SIM profile
+  useEffect(() => {
+    const cleanDigits = String(number || '').replace(/\D/g, '');
+    let finalPhone = cleanDigits.startsWith('213') ? '0' + cleanDigits.slice(3) : cleanDigits;
+
+    if (finalPhone.length === 10) {
+      if (finalPhone !== lastCheckedPhone) {
+        setLastCheckedPhone(finalPhone);
+        setSimLoading(true);
+        API.get('/flexy/sim-offers', { params: { phone: finalPhone } })
+          .then(res => {
+            if (res.data?.success) {
+              setSimInfo(res.data);
+              if (res.data.operator) setOperator(res.data.operator);
+            }
+          })
+          .catch(e => console.warn('SIM check error:', e.message))
+          .finally(() => setSimLoading(false));
+      }
+    } else {
+      if (lastCheckedPhone) {
+        setLastCheckedPhone('');
+        setSimInfo(null);
+      }
+    }
+  }, [number, lastCheckedPhone]);
 
   const fetchGrosDetails = () => {
     setDetailsLoading(true);
@@ -237,6 +269,65 @@ export default function FlexyGrosPage() {
               </div>
             )}
           </div>
+
+          {/* SIM Profile Badge (Auto-detected on 10 digits) */}
+          {simLoading && (
+            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 8, background: 'var(--bg-hover)', display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
+              <span className="spinner" style={{ width: 14, height: 14 }} />
+              <span>{t('جاري التحقق من نوع الشريحة...')}</span>
+            </div>
+          )}
+
+          {simInfo && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: '12px 16px',
+                borderRadius: '10px',
+                border: `1px solid ${simInfo.badgeColor ? simInfo.badgeColor + '55' : 'var(--border)'}`,
+                background: 'var(--bg-hover)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 10, height: 10, borderRadius: '50%',
+                    background: simInfo.badgeColor || '#00b140',
+                    boxShadow: `0 0 8px ${simInfo.badgeColor || '#00b140'}`
+                  }}
+                />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
+                    {simInfo.profileTitle}
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    {simInfo.profileDescription}
+                  </div>
+                </div>
+              </div>
+
+              {simInfo.source && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                    background: simInfo.source === 'creditshift' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                    color: simInfo.source === 'creditshift' ? '#10b981' : '#6366f1',
+                    border: '1px solid currentColor',
+                    fontWeight: 600
+                  }}
+                >
+                  {simInfo.source === 'creditshift' ? '✓ فحص مباشر' : (simInfo.source === 'history' ? 'سجل العمليات' : 'عروض قياسية')}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Amount input */}
           <div className="form-group">
