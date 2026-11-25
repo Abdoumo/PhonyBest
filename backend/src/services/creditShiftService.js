@@ -3,12 +3,27 @@
  * =============================================================
  * Handles automatic login and session renewal with creditshift.co
  * and fetches real-time SIM offers for any Algerian phone number.
+ * 
+ * Includes:
+ * 1. Robust Node.js HTTPS client with IPv4 forcing (family: 4) and SSL resilience.
+ * 2. Automatic Python fallback to test/test/get_offers.py if Node.js network is restricted.
  */
 
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const http = require('http');
+const { execFile } = require('child_process');
 
 const BASE_URL = 'https://creditshift.co';
+
+// Custom HTTPS Agent forcing IPv4 (avoids IPv6 hanging/failing on Ubuntu servers)
+const httpsAgent = new https.Agent({
+  family: 4,
+  keepAlive: true,
+  rejectUnauthorized: false,
+  timeout: 15000,
+});
 
 class CreditShiftService {
   constructor() {
@@ -43,6 +58,13 @@ class CreditShiftService {
       path.resolve(__dirname, '../../data/creditshift_cookies'),
       path.resolve(__dirname, '../../../cookies')
     ];
+  }
+
+  /**
+   * Resolve Python script path
+   */
+  getPythonScriptPath() {
+    return path.resolve(__dirname, '../../../test/test/get_offers.py');
   }
 
   /**
@@ -153,7 +175,65 @@ class CreditShiftService {
   }
 
   /**
-   * Perform automatic login to CreditShift
+   * Robust HTTPS request with family: 4 (IPv4) forcing
+   */
+  httpRequest(targetUrl, options = {}) {
+    return new Promise((resolve, reject) => {
+      try {
+        const u = new URL(targetUrl);
+        const isHttps = u.protocol === 'https:';
+        const client = isHttps ? https : http;
+
+        const headers = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'ar,fr;q=0.9,en;q=0.8',
+          ...(options.headers || {})
+        };
+
+        const reqOptions = {
+          method: options.method || 'GET',
+          headers,
+          agent: isHttps ? httpsAgent : undefined,
+          family: 4, // Force IPv4
+          rejectUnauthorized: false,
+          timeout: options.timeout || 15000,
+        };
+
+        const req = client.request(u, reqOptions, (res) => {
+          let chunks = [];
+          res.on('data', chunk => chunks.push(chunk));
+          res.on('end', () => {
+            const body = Buffer.concat(chunks).toString('utf8');
+            resolve({
+              statusCode: res.statusCode,
+              headers: res.headers,
+              body,
+            });
+          });
+        });
+
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error(`Request to ${u.hostname} timed out after 15s`));
+        });
+
+        req.on('error', (err) => {
+          reject(new Error(`HTTPS error (${err.code || 'UNKNOWN'}): ${err.message}`));
+        });
+
+        if (options.body) {
+          req.write(options.body);
+        }
+        req.end();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  /**
+   * Perform automatic login to CreditShift via Node HTTPS
    */
   async login() {
     const creds = this.getCredentials();
@@ -172,52 +252,44 @@ class CreditShiftService {
       username: creds.username,
       password: creds.password,
       remember: 'on'
-    });
+    }).toString();
 
-    const loginRes = await fetch(`${BASE_URL}/login`, {
+    const loginRes = await this.httpRequest(`${BASE_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Referer': `${BASE_URL}/login`,
         'Cookie': `DID=${did}`,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'Content-Length': Buffer.byteLength(loginParams)
       },
-      body: loginParams.toString(),
-      redirect: 'manual'
+      body: loginParams
     });
 
     // Extract SID from Set-Cookie headers
     let sid = null;
-    const rawSetCookie = loginRes.headers.get('set-cookie') || '';
-    const sidMatch = rawSetCookie.match(/SID=([^;,\s]+)/);
+    const rawSetCookies = loginRes.headers['set-cookie'] || [];
+    const setCookieStr = Array.isArray(rawSetCookies) ? rawSetCookies.join('; ') : String(rawSetCookies);
+    const sidMatch = setCookieStr.match(/SID=([^;,\s]+)/);
     if (sidMatch) {
       sid = sidMatch[1];
     }
 
     if (!sid) {
-      // Check if we already have a sid or if response body has a clue
-      const body = await loginRes.text();
-      if (body.includes('Invalid') || body.includes('غير صحيح')) {
+      if (loginRes.body.includes('Invalid') || loginRes.body.includes('غير صحيح')) {
         throw new Error('CreditShift login failed: Invalid username or password.');
       }
-      throw new Error('CreditShift login failed: No session cookie received.');
+      throw new Error(`CreditShift login failed: No session cookie received (status ${loginRes.statusCode})`);
     }
 
     let cookieHeader = `DID=${did}; SID=${sid}; language=ar`;
 
     // Step 2: Check /seller to verify if PIN verification is required
-    const checkRes = await fetch(`${BASE_URL}/seller`, {
+    const checkRes = await this.httpRequest(`${BASE_URL}/seller`, {
       method: 'GET',
-      headers: {
-        'Cookie': cookieHeader,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      redirect: 'manual'
+      headers: { 'Cookie': cookieHeader }
     });
 
-    const checkBody = await checkRes.text();
-
-    if (checkRes.status !== 200 || checkBody.includes('verifyPin') || checkBody.includes('أدخل الرقم السري')) {
+    if (checkRes.statusCode !== 200 || checkRes.body.includes('verifyPin') || checkRes.body.includes('أدخل الرقم السري')) {
       if (!creds.pin) {
         throw new Error('CreditShift PIN verification required but no PIN provided in credentials.');
       }
@@ -226,45 +298,82 @@ class CreditShiftService {
       const pinParams = new URLSearchParams({
         auth_token: did,
         pin: creds.pin
-      });
+      }).toString();
 
-      const pinRes = await fetch(`${BASE_URL}/verifyPin`, {
+      const pinRes = await this.httpRequest(`${BASE_URL}/verifyPin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Referer': `${BASE_URL}/seller`,
           'Cookie': cookieHeader,
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          'Content-Length': Buffer.byteLength(pinParams)
         },
-        body: pinParams.toString(),
-        redirect: 'manual'
+        body: pinParams
       });
 
-      const pinSetCookie = pinRes.headers.get('set-cookie') || '';
-      const pinSidMatch = pinSetCookie.match(/SID=([^;,\s]+)/);
+      const pinSetCookies = pinRes.headers['set-cookie'] || [];
+      const pinCookieStr = Array.isArray(pinSetCookies) ? pinSetCookies.join('; ') : String(pinSetCookies);
+      const pinSidMatch = pinCookieStr.match(/SID=([^;,\s]+)/);
       if (pinSidMatch) {
         sid = pinSidMatch[1];
         cookieHeader = `DID=${did}; SID=${sid}; language=ar`;
       }
 
-      // Verify dashboard access again
-      const verifyRes = await fetch(`${BASE_URL}/seller`, {
+      const verifyRes = await this.httpRequest(`${BASE_URL}/seller`, {
         method: 'GET',
-        headers: {
-          'Cookie': cookieHeader,
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
-        redirect: 'manual'
+        headers: { 'Cookie': cookieHeader }
       });
 
-      if (verifyRes.status !== 200) {
-        throw new Error(`CreditShift PIN verification failed (status ${verifyRes.status})`);
+      if (verifyRes.statusCode !== 200) {
+        throw new Error(`CreditShift PIN verification failed (status ${verifyRes.statusCode})`);
       }
     }
 
     console.log('[CreditShift] Login successful! New session token cached.');
     this.saveSession(did, sid);
     return { did, sid, role: this.session.role };
+  }
+
+  /**
+   * Fallback: Query via Python script test/test/get_offers.py
+   */
+  fetchViaPython(phone) {
+    return new Promise((resolve, reject) => {
+      const scriptPath = this.getPythonScriptPath();
+      if (!fs.existsSync(scriptPath)) {
+        return reject(new Error(`Python script not found at ${scriptPath}`));
+      }
+
+      const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+      execFile(pythonCmd, [scriptPath, phone, '--json'], { timeout: 20000 }, (error, stdout, stderr) => {
+        if (error) {
+          return reject(new Error(`Python script error: ${error.message} (stderr: ${stderr})`));
+        }
+
+        try {
+          // Parse stdout (may have banner logs before JSON)
+          const jsonStart = stdout.indexOf('[');
+          const jsonObjectStart = stdout.indexOf('{');
+          const startIdx = (jsonStart > -1 && (jsonObjectStart === -1 || jsonStart < jsonObjectStart))
+            ? jsonStart
+            : jsonObjectStart;
+
+          if (startIdx === -1) {
+            return reject(new Error(`No valid JSON output from Python script: ${stdout.slice(0, 200)}`));
+          }
+
+          const cleanJson = stdout.slice(startIdx).trim();
+          const parsed = JSON.parse(cleanJson);
+
+          // Refresh cookies in memory if python script updated cookies file
+          this.initSession();
+
+          resolve(parsed);
+        } catch (parseErr) {
+          reject(new Error(`JSON parse error from Python script: ${parseErr.message}`));
+        }
+      });
+    });
   }
 
   /**
@@ -280,44 +389,34 @@ class CreditShiftService {
       throw new Error(`Invalid phone number: ${phone} (must be 10 digits)`);
     }
 
-    // Ensure session is initialized
-    if (!this.session.sid) {
-      await this.login();
-    }
+    // Try Node HTTPS client first
+    let nodeError = null;
+    try {
+      if (!this.session.sid) {
+        await this.login();
+      }
 
-    const role = this.session.role || 'seller';
-    const url = `${BASE_URL}/${role}/getFlexyOffers?phoneNbr=${cleanPhone}`;
+      const role = this.session.role || 'seller';
+      const url = `${BASE_URL}/${role}/getFlexyOffers?phoneNbr=${cleanPhone}`;
 
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch(url, {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const res = await this.httpRequest(url, {
           method: 'GET',
           headers: {
             'Referer': `${BASE_URL}/${role}/flexy`,
             'Cookie': this.getCookieHeader(),
-            'Accept': 'application/json, text/plain, */*',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          },
-          redirect: 'manual'
+          }
         });
 
-        // If redirected or status 302, session is expired
-        if (res.status === 302 || res.headers.get('location')) {
+        // 302 redirect or login HTML => session expired
+        if (res.statusCode === 302 || (res.body && res.body.includes('/login'))) {
           console.log('[CreditShift] Session expired (302 redirect). Re-authenticating...');
           await this.login();
           continue;
         }
 
-        const text = await res.text();
-        if (text.trim().startsWith('<!DOCTYPE') || text.includes('/login')) {
-          console.log('[CreditShift] Received HTML login page instead of JSON. Re-authenticating...');
-          await this.login();
-          continue;
-        }
+        const data = JSON.parse(res.body);
 
-        const data = JSON.parse(text);
-
-        // Check if CreditShift returned an error payload
         if (data && typeof data === 'object' && !Array.isArray(data) && data.error) {
           const errObj = data.error;
           const msg = errObj.message_ar || errObj.message || JSON.stringify(errObj);
@@ -329,21 +428,27 @@ class CreditShiftService {
         }
 
         return { error: null, offers: [] };
-      } catch (err) {
-        if (attempt === 0) {
-          console.warn(`[CreditShift] Fetch error on attempt 1: ${err.message}. Retrying with re-login...`);
-          try {
-            await this.login();
-            continue;
-          } catch (loginErr) {
-            throw new Error(`CreditShift query failed: ${err.message} (login retry failed: ${loginErr.message})`);
-          }
-        }
-        throw err;
       }
+    } catch (err) {
+      nodeError = err;
+      console.warn(`[CreditShift] Node HTTPS request failed (${err.message}). Trying Python fallback...`);
     }
 
-    return { error: 'Failed to fetch offers after retry', offers: [] };
+    // Fallback: Run Python get_offers.py directly
+    try {
+      const pythonData = await this.fetchViaPython(cleanPhone);
+      if (Array.isArray(pythonData)) {
+        console.log(`[CreditShift] Python fallback succeeded for ${cleanPhone}: ${pythonData.length} offers found.`);
+        return { error: null, offers: pythonData };
+      }
+      if (pythonData && pythonData.error) {
+        return { error: pythonData.error.message_ar || pythonData.error.message || 'خطأ من السيرفر', offers: [] };
+      }
+    } catch (pyErr) {
+      console.warn(`[CreditShift] Python fallback also failed: ${pyErr.message}`);
+    }
+
+    throw new Error(`CreditShift query failed: ${nodeError ? nodeError.message : 'Unknown network failure'}`);
   }
 }
 

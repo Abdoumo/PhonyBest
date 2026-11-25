@@ -531,7 +531,7 @@ export default function ModemGridPage() {
         <div className="mg-modal-overlay" onClick={() => setShowTokenModal(null)}>
           <div className="mg-modal" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ margin: 0 }}>🔑 {t('توكن الجهاز')}</h3>
+              <h3 style={{ margin: 0 }}>🔑 {t('بيانات ربط جهاز ModemGrid PRO')}</h3>
               <button onClick={() => setShowTokenModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <FiX size={20} />
               </button>
@@ -539,17 +539,32 @@ export default function ModemGridPage() {
             <div style={{ background: 'var(--warning-bg)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--warning)' }}>
               ⚠️ {t('احفظ هذا التوكن — لن يظهر مرة أخرى!')}
             </div>
-            <div className="mg-token-display">
-              {showTokenModal.token}
-              <button className="copy-btn" onClick={() => copyToken(showTokenModal.token)}>
-                {copied ? <><FiCheckCircle size={10} /> {t('تم')}</> : <><FiCopy size={10} /> {t('نسخ')}</>}
-              </button>
+
+            <div style={{ marginBottom: 14 }}>
+              <label className="form-label" style={{ fontSize: 12 }}>🌐 {t('رابط مقبس WSS (Server URL)')}</label>
+              <div className="mg-token-display" style={{ fontSize: 13 }}>
+                wss://grid.phonybest.dz
+                <button className="copy-btn" onClick={() => copyToken('wss://grid.phonybest.dz')}>
+                  {copied ? <><FiCheckCircle size={10} /> {t('تم')}</> : <><FiCopy size={10} /> {t('نسخ')}</>}
+                </button>
+              </div>
             </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label className="form-label" style={{ fontSize: 12 }}>🔑 {t('رمز التوكن (Bearer Token)')}</label>
+              <div className="mg-token-display">
+                {showTokenModal.token}
+                <button className="copy-btn" onClick={() => copyToken(showTokenModal.token)}>
+                  {copied ? <><FiCheckCircle size={10} /> {t('تم')}</> : <><FiCopy size={10} /> {t('نسخ')}</>}
+                </button>
+              </div>
+            </div>
+
             <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 16 }}>
-              {t('استخدم هذا التوكن في إعدادات ModemGrid PRO:')}
+              {t('في إعدادات برنامج ModemGrid PRO أدخل:')}
               <br />
-              <code style={{ background: 'var(--bg-input)', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
-                WSS Token: {showTokenModal.token?.substring(0, 20)}...
+              <code style={{ background: 'var(--bg-input)', padding: '3px 6px', borderRadius: 4, fontSize: 11, display: 'inline-block', marginTop: 4 }}>
+                Server URL: wss://grid.phonybest.dz
               </code>
             </p>
             <button className="btn btn-primary" onClick={() => setShowTokenModal(null)} style={{ width: '100%', justifyContent: 'center' }}>

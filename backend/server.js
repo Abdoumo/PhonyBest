@@ -10,7 +10,7 @@ const { createTables } = require('./src/database/init');
 const cookieParser = require('cookie-parser');
 
 const app = express();
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 app.use(cookieParser());
 const server = http.createServer(app);
 
@@ -122,6 +122,7 @@ app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000, // Global limit: 1000 requests per 15 minutes
+  validate: { trustProxy: false },
   message: { error: 'Too many requests' },
 });
 app.use('/api/', limiter);
@@ -130,6 +131,7 @@ app.use('/api/', limiter);
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // Limit each IP to 10 login attempts per window
+  validate: { trustProxy: false },
   message: { error: 'Too many login attempts, please try again after 15 minutes' },
 });
 

@@ -51,81 +51,83 @@ const sendFlexy = async (req, res) => {
     let targetInfo = null;
     let usedExternal = false;
 
-    // 1. Check for external API mapping first (matches exact offer or default operator mapping)
-    const mappingResult = await query(
-      `SELECT modemgrid_api_name FROM offer_api_mappings 
-       WHERE service_type = $1 
-         AND operator = $2 
-         AND (offer_name = $3 OR offer_name = '' OR offer_name = 'default' OR offer_name = 'gros') 
-         AND is_active = true 
-       ORDER BY (CASE WHEN offer_name = $3 THEN 0 WHEN offer_name = 'default' THEN 1 ELSE 2 END)
-       LIMIT 1`,
-      [serviceType, operator.toLowerCase(), offer || '']
-    );
+    // 1. Check if a live ModemGrid node is connected via WebSocket (WSS on port 8760 / grid.phonybest.dz)
+    const target = await routingEngine.selectBestTarget(operator, amount, offer, dongle_id, serviceType, offer);
 
-    if (mappingResult.rows.length > 0) {
-      usedExternal = true;
-      const apiName = mappingResult.rows[0].modemgrid_api_name;
-      const variables = customVariables || {
+    if (target) {
+      targetInfo = target;
+      const targetModemId = target.dongleId || dongle_id;
+      const variables = {
         phone_number: number,
+        phone: number,
         price: String(amount),
-        amount: String(amount),
+        amount: numAmount,
+        amount_str: String(amount),
+        operator: operator.toLowerCase(),
+        ...(customVariables || {}),
       };
       if (offer && !variables.offer) variables.offer = offer;
+      if (targetModemId) {
+        variables.dongle_id = targetModemId;
+        variables.target_modem = targetModemId;
+        variables.modem_id = targetModemId;
+      }
+
+      console.log(`[FlexyController] Routing via live WSS node ${target.nodeId} (${target.nodeName || 'Node'}) for ${operator}`);
 
       try {
-        const mgResponse = await modemGridService.executeAndWaitApi(apiName, variables);
-        const isMgSuccess = mgResponse.status === 'completed' || mgResponse.status === 'success';
-        wssResult = {
-           status: isMgSuccess ? 'completed' : 'failed',
-           request_id: mgResponse.session_id,
-           modem_id: mgResponse.modem_id || 'modemgrid',
-           result: mgResponse,
-           duration: 0,
-           raw_data: mgResponse,
-        };
-        finalStatus = isMgSuccess ? 'success' : 'failed';
-        errorMsg = mgResponse.error || null;
-        targetInfo = { nodeName: 'external_modemgrid', poolName: 'external', apiName };
-      } catch (e) {
-         errorMsg = e.message;
+        wssResult = await requestQueue.enqueue(
+          target.nodeId,
+          target.apiName,
+          variables,
+          transaction.id
+        );
+        finalStatus = (wssResult.status === 'completed' || wssResult.status === 'success') ? 'success' : 'failed';
+        errorMsg = wssResult.error || null;
+      } catch (wssError) {
+        errorMsg = wssError.message;
       }
-    }
+    } else {
+      // 2. Fallback to external HTTP REST API (https://modemgrid.imadox.qzz.io/api/v1) if no WSS node is online
+      const mappingResult = await query(
+        `SELECT modemgrid_api_name FROM offer_api_mappings 
+         WHERE service_type = $1 
+           AND operator = $2 
+           AND (offer_name = $3 OR offer_name = '' OR offer_name = 'default' OR offer_name = 'gros') 
+           AND is_active = true 
+         ORDER BY (CASE WHEN offer_name = $3 THEN 0 WHEN offer_name = 'default' THEN 1 ELSE 2 END)
+         LIMIT 1`,
+        [serviceType, operator.toLowerCase(), offer || '']
+      );
 
-    // 2. Fallback to internal WSS if no external mapping
-    if (!usedExternal) {
-      const target = await routingEngine.selectBestTarget(operator, amount, offer, dongle_id, serviceType, offer);
-      
-      if (target) {
-        targetInfo = target;
-        const targetModemId = target.dongleId || dongle_id;
-        const variables = {
+      if (mappingResult.rows.length > 0) {
+        usedExternal = true;
+        const apiName = mappingResult.rows[0].modemgrid_api_name;
+        const variables = customVariables || {
           phone_number: number,
-          phone: number,
           price: String(amount),
-          amount: numAmount,
-          amount_str: String(amount),
-          operator: operator.toLowerCase(),
-          ...(customVariables || {}),
+          amount: String(amount),
         };
         if (offer && !variables.offer) variables.offer = offer;
-        if (targetModemId) {
-          variables.dongle_id = targetModemId;
-          variables.target_modem = targetModemId;
-          variables.modem_id = targetModemId;
-        }
+
+        console.log(`[FlexyController] No live WSS node online. Falling back to HTTP REST API: ${apiName}`);
 
         try {
-          wssResult = await requestQueue.enqueue(
-            target.nodeId,
-            target.apiName,
-            variables,
-            transaction.id
-          );
-          finalStatus = (wssResult.status === 'completed' || wssResult.status === 'success') ? 'success' : 'failed';
-          errorMsg = wssResult.error || null;
-        } catch (wssError) {
-          errorMsg = wssError.message;
+          const mgResponse = await modemGridService.executeAndWaitApi(apiName, variables);
+          const isMgSuccess = mgResponse.status === 'completed' || mgResponse.status === 'success';
+          wssResult = {
+             status: isMgSuccess ? 'completed' : 'failed',
+             request_id: mgResponse.session_id,
+             modem_id: mgResponse.modem_id || 'modemgrid',
+             result: mgResponse,
+             duration: 0,
+             raw_data: mgResponse,
+          };
+          finalStatus = isMgSuccess ? 'success' : 'failed';
+          errorMsg = mgResponse.error || null;
+          targetInfo = { nodeName: 'external_modemgrid', poolName: 'external', apiName };
+        } catch (e) {
+           errorMsg = e.message;
         }
       }
     }

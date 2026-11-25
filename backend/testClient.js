@@ -1,9 +1,14 @@
 const WebSocket = require('ws');
 
-// Connect to the server using the token in the headers
-const ws = new WebSocket('ws://69.57.163.97:8760/', {
+// Connect to the server using wss://grid.phonybest.dz or local fallback
+const WSS_URL = process.env.WSS_URL || 'wss://grid.phonybest.dz/';
+const TOKEN = process.env.WSS_TOKEN || '6bd9b9eb34e0e858655e25fba865fab97c667b28f15b394c50116b58c4a42228';
+
+console.log(`Connecting to ModemGrid WSS at: ${WSS_URL}`);
+
+const ws = new WebSocket(WSS_URL, {
     headers: {
-        'Authorization': 'Bearer 6bd9b9eb34e0e858655e25fba865fab97c667b28f15b394c50116b58c4a42228'
+        'Authorization': `Bearer ${TOKEN}`
     }
 });
 
