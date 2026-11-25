@@ -104,7 +104,25 @@ function start(io) {
           return;
         }
 
-        // Handle result from a topup request
+        // 1. Check if this is a response to a pending node query (e.g. getallapis)
+        if (data.request_id && nodeManager.hasPendingQuery(data.request_id)) {
+          console.log(`📡 WSS: Handling query response for ${data.request_id} from "${ws._nodeName}"`);
+          await nodeManager.handleQueryResponse(data.request_id, data);
+          return;
+        }
+
+        // 2. Check if this message has type getallapis or allapis or carries an apis array
+        if (data.type === 'getallapis' || data.type === 'allapis' || (data.apis && Array.isArray(data.apis))) {
+          console.log(`📦 WSS: Received APIs message from "${ws._nodeName}"`);
+          if (data.request_id && nodeManager.hasPendingQuery(data.request_id)) {
+            await nodeManager.handleQueryResponse(data.request_id, data);
+          } else {
+            await nodeManager.storeNodeApis(ws._nodeId, data.apis || data.definitions || data.data || []);
+          }
+          return;
+        }
+
+        // 3. Handle result from a topup request
         if (data.request_id) {
           await requestQueue.handleResult(ws._nodeId, data);
           return;

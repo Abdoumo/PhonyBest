@@ -41,7 +41,13 @@ async function selectBestTarget(operator, amount, apiName = null, dongleId = nul
     const offerToCheck = offerName || apiName;
     try {
       const mappingResult = await query(
-        'SELECT modemgrid_api_name FROM offer_api_mappings WHERE service_type = $1 AND operator = $2 AND offer_name = $3 AND is_active = true',
+        `SELECT modemgrid_api_name FROM offer_api_mappings 
+         WHERE service_type = $1 
+           AND operator = $2 
+           AND (offer_name = $3 OR offer_name = '' OR offer_name = 'default' OR offer_name = 'gros') 
+           AND is_active = true 
+         ORDER BY (CASE WHEN offer_name = $3 THEN 0 WHEN offer_name = 'default' THEN 1 ELSE 2 END)
+         LIMIT 1`,
         [serviceType, op, offerToCheck]
       );
       if (mappingResult.rows.length > 0) {

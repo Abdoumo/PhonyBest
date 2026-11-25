@@ -488,6 +488,9 @@ const createTables = async () => {
       await client.query(`ALTER TABLE transfers ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100)`);
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_code VARCHAR(50)`);
       await client.query(`CREATE INDEX IF NOT EXISTS idx_users_ref_code ON users(ref_code)`);
+      await client.query(`ALTER TABLE offer_api_mappings ADD COLUMN IF NOT EXISTS description TEXT;`);
+      await client.query(`ALTER TABLE offer_api_mappings ADD COLUMN IF NOT EXISTS default_amount DECIMAL(10,2);`);
+      await client.query(`ALTER TABLE offer_api_mappings ADD COLUMN IF NOT EXISTS variables JSONB DEFAULT '{}';`);
 
       // Migrate wss_dongles pool_ids and wss_pools pool_id to support string / UUID IDs from ModemGrid
       try {
